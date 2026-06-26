@@ -699,14 +699,14 @@ export default function RoutinesScreen() {
                 <View className="flex-row justify-between items-start mb-3">
                   <View className="flex-1 pr-2">
                     <Text 
-                      className={`font-bold text-sm uppercase tracking-wide ${themeTextHeader}`}
+                      className={`font-bold text-base uppercase tracking-wide ${themeTextHeader}`}
                       style={{ fontFamily: systemFont }}
                     >
                       {routine.name}
                     </Text>
                     {routine.description ? (
                       <Text 
-                        className={`text-[10px] mt-1.5 leading-relaxed ${themeTextSub}`}
+                        className={`text-xs mt-1.5 leading-relaxed ${themeTextSub}`}
                         style={{ fontFamily: systemFont }}
                       >
                         {routine.description}
@@ -716,12 +716,12 @@ export default function RoutinesScreen() {
                   <View className="flex-row items-center gap-2">
                     <TouchableOpacity
                       onPress={() => handleStartRoutine(routine)}
-                      className="bg-[#ea580c] px-3.5 py-2 flex-row items-center gap-1.5"
+                      className="bg-[#ea580c] px-4.5 py-2.5 flex-row items-center gap-1.5"
                       style={{ borderRadius: 12 }}
                     >
-                      <Dumbbell color="#ffffff" size={13} strokeWidth={2.5} />
+                      <Dumbbell color="#ffffff" size={14} strokeWidth={2.5} />
                       <Text 
-                        className="text-white font-bold text-[10px] uppercase tracking-wider"
+                        className="text-white font-bold text-xs uppercase tracking-wider"
                         style={{ fontFamily: systemFont }}
                       >
                         Start
@@ -733,10 +733,10 @@ export default function RoutinesScreen() {
                 {/* Exercises Preview inside Routine Card */}
                 <View className={`border-t pt-3.5 mt-4 ${themeDivider}`}>
                   {routine.routine_exercises?.map((re, idx) => (
-                    <View key={re.id || idx} className="flex-row items-center mt-1.5">
-                      <Dumbbell size={10} color="#ea580c" className="mr-2" />
+                    <View key={re.id || idx} className="flex-row items-center mt-2">
+                      <Dumbbell size={12} color="#ea580c" className="mr-2" />
                       <Text 
-                        className={`text-[10px] font-bold uppercase tracking-wider ${themeTextSub}`}
+                        className={`text-xs font-bold uppercase tracking-wider ${themeTextSub}`}
                         style={{ fontFamily: systemFont }}
                       >
                         {re.exercises?.name || 'Exercise'} <Text className="text-[#ea580c]">({re.routine_sets?.length || 0} sets)</Text>
@@ -1174,9 +1174,9 @@ export default function RoutinesScreen() {
 
                   {/* Target Sets table header */}
                   <View className="flex-row items-center mb-2 px-1">
-                    <Text className="w-8 text-[9px] font-bold text-zinc-500 uppercase">Set</Text>
-                    <Text className="flex-1 text-[9px] font-bold text-zinc-500 text-center uppercase">Target Wt ({weightUnit})</Text>
-                    <Text className="flex-1 text-[9px] font-bold text-zinc-500 text-center uppercase">Target Reps</Text>
+                    <Text className="w-8 text-xs font-bold text-zinc-500 uppercase">Set</Text>
+                    <Text className="flex-1 text-xs font-bold text-zinc-500 text-center uppercase">Target Wt ({weightUnit})</Text>
+                    <Text className="flex-1 text-xs font-bold text-zinc-500 text-center uppercase">Target Reps</Text>
                     <Text className="w-10"></Text>
                   </View>
 
@@ -1187,8 +1187,8 @@ export default function RoutinesScreen() {
                       style={{ 
                         flexDirection: 'row',
                         alignItems: 'center',
-                        paddingVertical: 8,
-                        paddingHorizontal: 12,
+                        paddingVertical: 10,
+                        paddingHorizontal: 14,
                         borderWidth: 1,
                         marginBottom: 8,
                         backgroundColor: isDark ? 'rgba(9, 9, 11, 0.6)' : '#ffffff',
@@ -1196,7 +1196,7 @@ export default function RoutinesScreen() {
                         borderRadius: 14 
                       }}
                     >
-                      <Text className="w-8 text-xs font-bold text-zinc-500" style={{ fontFamily: systemFont }}>
+                      <Text className="w-8 text-sm font-bold text-zinc-500" style={{ fontFamily: systemFont }}>
                         {String(setIdx + 1).padStart(2, '0')}
                       </Text>
                       
@@ -1206,11 +1206,11 @@ export default function RoutinesScreen() {
                           className={`font-bold ${isDark ? 'text-[#e2e2e5]' : 'text-zinc-900'}`}
                           style={{ 
                             borderRadius: 10,
-                            height: 36,
+                            height: 48,
                             borderWidth: 1,
                             textAlign: 'center',
-                            fontSize: 12,
-                            paddingVertical: 6,
+                            fontSize: 14,
+                            paddingVertical: 10,
                             backgroundColor: isDark ? 'rgba(9, 9, 11, 0.4)' : '#ffffff',
                             borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7'
                           }}
@@ -1228,11 +1228,11 @@ export default function RoutinesScreen() {
                           className={`font-bold ${isDark ? 'text-[#e2e2e5]' : 'text-zinc-900'}`}
                           style={{ 
                             borderRadius: 10,
-                            height: 36,
+                            height: 48,
                             borderWidth: 1,
                             textAlign: 'center',
-                            fontSize: 12,
-                            paddingVertical: 6,
+                            fontSize: 14,
+                            paddingVertical: 10,
                             backgroundColor: isDark ? 'rgba(9, 9, 11, 0.4)' : '#ffffff',
                             borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7'
                           }}
@@ -1248,7 +1248,7 @@ export default function RoutinesScreen() {
                       <View className="w-10 items-end">
                         {ex.sets.length > 1 && (
                           <TouchableOpacity onPress={() => removeSetFromBuilderExercise(exIdx, setIdx)} className="p-1">
-                            <X size={14} color="#ff453a" strokeWidth={2} />
+                            <X size={16} color="#ff453a" strokeWidth={2} />
                           </TouchableOpacity>
                         )}
                       </View>
@@ -1262,7 +1262,7 @@ export default function RoutinesScreen() {
                       borderWidth: 1,
                       borderColor: 'rgba(234, 88, 12, 0.3)',
                       backgroundColor: 'rgba(234, 88, 12, 0.05)',
-                      paddingVertical: 6,
+                      paddingVertical: 12,
                       alignItems: 'center',
                       justifyContent: 'center',
                       marginTop: 8,
@@ -1270,7 +1270,7 @@ export default function RoutinesScreen() {
                       borderRadius: 100 
                     }}
                   >
-                    <Text className="text-[#ea580c] text-[10px] font-bold uppercase tracking-wider">
+                    <Text className="text-[#ea580c] text-xs font-bold uppercase tracking-wider">
                       + Add Set Preset
                     </Text>
                   </TouchableOpacity>

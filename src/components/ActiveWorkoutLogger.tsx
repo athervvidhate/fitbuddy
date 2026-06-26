@@ -70,7 +70,7 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
 
   return (
     <View
-      className="flex-row items-center py-2.5 px-3.5 border mb-2"
+      className="flex-row items-center py-3 px-3.5 border mb-2"
       style={{
         borderRadius: 14,
         backgroundColor: set.isCompleted 
@@ -83,7 +83,7 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
     >
       {/* Set Number */}
       <Text
-        className={`w-8 text-xs font-bold ${set.isCompleted ? 'text-[#ea580c]' : 'text-zinc-500'}`}
+        className={`w-8 text-sm font-bold ${set.isCompleted ? 'text-[#ea580c]' : 'text-zinc-500'}`}
         style={{ fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' }}
       >
         {String(setIdx + 1).padStart(2, '0')}
@@ -93,7 +93,7 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
       <View className="flex-1 px-1.5">
         <TextInput
           keyboardType="numeric"
-          className={`text-center text-xs py-1.5 font-bold h-9 border ${
+          className={`text-center text-sm py-3 font-bold h-12 border ${
             isDark ? 'bg-zinc-900/40 text-[#e2e2e5]' : 'bg-white text-zinc-900'
           }`}
           style={{
@@ -116,7 +116,7 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
       <View className="flex-1 px-1.5">
         <TextInput
           keyboardType="number-pad"
-          className={`text-center text-xs py-1.5 font-bold h-9 border ${
+          className={`text-center text-sm py-3 font-bold h-12 border ${
             isDark ? 'bg-zinc-900/40 text-[#e2e2e5]' : 'bg-white text-zinc-900'
           }`}
           style={{
@@ -142,8 +142,8 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
             style={[
               checkAnimatedStyle,
               {
-                width: 26,
-                height: 26,
+                width: 32,
+                height: 32,
                 borderRadius: 8,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -157,7 +157,7 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
               },
             ]}
           >
-            {set.isCompleted && <Check color="#ffffff" size={14} strokeWidth={3} />}
+            {set.isCompleted && <Check color="#ffffff" size={16} strokeWidth={3} />}
           </Animated.View>
         </Pressable>
       </View>
@@ -354,20 +354,20 @@ export function ActiveWorkoutLogger() {
       {/* 1. PERSISTENT BOTTOM BAR */}
       {!loggerVisible && (
         <View 
-          className={`absolute left-4 right-4 border p-4 flex-row justify-between items-center ${isDark ? 'bg-zinc-950/90 border-[#ea580c]/30' : 'bg-white border-[#ea580c]/50'}`}
+          className={`absolute left-4 right-4 border p-5 flex-row justify-between items-center ${isDark ? 'bg-zinc-950/90 border-[#ea580c]/30' : 'bg-white border-[#ea580c]/50'}`}
           style={{ bottom: loggerBottomPosition, borderRadius: 20, elevation: 10, zIndex: 99 }}
         >
           <View className="flex-1 pr-3">
             <View className="flex-row items-center">
-              <Flame size={10} color="#ea580c" className="mr-1.5" />
-              <Text className="text-[#ea580c] font-semibold text-[10px] uppercase">Workout in progress</Text>
+              <Flame size={12} color="#ea580c" className="mr-1.5" />
+              <Text className="text-[#ea580c] font-bold text-xs uppercase tracking-wider">Workout in progress</Text>
             </View>
-            <Text className={`font-semibold text-xs mt-1 ${themeTextHeader}`} numberOfLines={1}>
+            <Text className={`font-semibold text-sm mt-1.5 ${themeTextHeader}`} numberOfLines={1}>
               {activeWorkout.name} • {formatTime(elapsedSeconds)}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => setLoggerVisible(true)} className="bg-[#ea580c] px-4 py-2" style={{ borderRadius: 12 }}>
-            <Text className="text-white font-semibold text-[10px]">Resume</Text>
+          <TouchableOpacity onPress={() => setLoggerVisible(true)} className="bg-[#ea580c] px-5 py-3" style={{ borderRadius: 12 }}>
+            <Text className="text-white font-bold text-xs uppercase tracking-wider">Resume</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -375,19 +375,19 @@ export function ActiveWorkoutLogger() {
       {/* 2. PERSISTENT REST TIMER */}
       {showRestTimer && (
         <View 
-          className={`absolute top-14 left-4 right-4 border py-3.5 px-4 flex-row justify-between items-center z-50 ${isDark ? 'bg-zinc-950/90 border-[#ea580c]/20' : 'bg-white border-[#ea580c]/30'}`}
+          className={`absolute top-14 left-4 right-4 border py-4 px-4.5 flex-row justify-between items-center z-50 ${isDark ? 'bg-zinc-950/90 border-[#ea580c]/20' : 'bg-white border-[#ea580c]/30'}`}
           style={{ borderRadius: 18, elevation: 8 }}
         >
           <View className="flex-row items-center">
-            <Clock size={14} color="#ea580c" className="mr-2" />
-            <Text className="text-[#ea580c] font-bold text-xs uppercase tracking-wider">Rest: {formatTime(restSeconds)}</Text>
+            <Clock size={16} color="#ea580c" className="mr-2" />
+            <Text className="text-[#ea580c] font-bold text-sm uppercase tracking-wider">Rest: {formatTime(restSeconds)}</Text>
           </View>
           <View className="flex-row items-center gap-2">
-            <TouchableOpacity onPress={() => setRestSeconds((prev) => prev + 30)} className={`border px-3 py-1.5 ${isDark ? 'bg-zinc-900 border-white/5' : 'bg-zinc-100 border-zinc-200'}`} style={{ borderRadius: 10 }}>
-              <Text className="text-[#ea580c] font-bold text-[9px] uppercase">+30s</Text>
+            <TouchableOpacity onPress={() => setRestSeconds((prev) => prev + 30)} className={`border px-4.5 py-2.5 ${isDark ? 'bg-zinc-900 border-white/5' : 'bg-zinc-100 border-zinc-200'}`} style={{ borderRadius: 10 }}>
+              <Text className="text-[#ea580c] font-bold text-xs uppercase tracking-wider">+30s</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => { setRestSeconds(0); setShowRestTimer(false); }} className={`border px-3 py-1.5 ${isDark ? 'bg-red-950/30 border-red-500/20' : 'bg-red-50 border-red-200'}`} style={{ borderRadius: 10 }}>
-              <X size={10} color="#ff453a" strokeWidth={2.5} />
+            <TouchableOpacity onPress={() => { setRestSeconds(0); setShowRestTimer(false); }} className={`border px-4 py-2.5 ${isDark ? 'bg-red-950/30 border-red-500/20' : 'bg-red-50 border-red-200'}`} style={{ borderRadius: 10 }}>
+              <X size={12} color="#ff453a" strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
         </View>
@@ -513,12 +513,12 @@ export function ActiveWorkoutLogger() {
                   ))}
                   
                   <View className={`flex-row justify-between items-center mt-3.5 pt-3 border-t ${themeDivider}`}>
-                    <TouchableOpacity onPress={() => addSetToExercise(exIdx)} className="border border-[#ea580c]/30 bg-[#ea580c]/5 py-1.5 px-4" style={{ borderRadius: 100 }}>
-                      <Text className="text-[#ea580c] text-[10px] font-bold uppercase">+ Add Set</Text>
+                    <TouchableOpacity onPress={() => addSetToExercise(exIdx)} className="border border-[#ea580c]/30 bg-[#ea580c]/5 py-2.5 px-5" style={{ borderRadius: 100 }}>
+                      <Text className="text-[#ea580c] text-xs font-bold uppercase">+ Add Set</Text>
                     </TouchableOpacity>
                     {ex.sets.length > 1 && (
-                      <TouchableOpacity onPress={() => removeSetFromExercise(exIdx, ex.sets.length - 1)} className={`border py-1.5 px-4 ${isDark ? 'bg-zinc-900 border-white/5' : 'bg-zinc-100 border-zinc-200'}`} style={{ borderRadius: 100 }}>
-                        <Text className={`text-[10px] font-bold uppercase ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>- Del Set</Text>
+                      <TouchableOpacity onPress={() => removeSetFromExercise(exIdx, ex.sets.length - 1)} className={`border py-2.5 px-5 ${isDark ? 'bg-zinc-900 border-white/5' : 'bg-zinc-100 border-zinc-200'}`} style={{ borderRadius: 100 }}>
+                        <Text className={`text-xs font-bold uppercase ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>- Del Set</Text>
                       </TouchableOpacity>
                     )}
                   </View>

@@ -203,13 +203,13 @@ export default function SettingsScreen() {
         {/* Header */}
         <View className={`mb-6 border-b pb-4 ${themeDivider}`}>
           <Text 
-            className="text-zinc-500 text-[10px] tracking-wide font-semibold"
+            className="text-zinc-500 text-xs tracking-wide font-bold"
             style={{ fontFamily: systemFont }}
           >
             Preferences
           </Text>
           <Text 
-            className={`text-lg font-bold mt-1 ${themeTextHeader}`}
+            className={`text-xl font-bold mt-1.5 ${themeTextHeader}`}
             style={{ fontFamily: systemFont }}
           >
             Settings
@@ -252,18 +252,18 @@ export default function SettingsScreen() {
               @{profile?.username || 'user'}
             </Text>
             <Text
-              className={`text-[10px] font-bold mt-0.5 uppercase tracking-wider ${themeTextMuted}`}
+              className={`text-xs font-bold mt-0.5 uppercase tracking-wider ${themeTextMuted}`}
               style={{ fontFamily: systemFont }}
               numberOfLines={1}
             >
               {user?.email}
             </Text>
             <View
-              className="border border-[#ea580c]/20 bg-[#ea580c]/5 px-2.5 py-0.5 mt-2.5 self-start"
+              className="border border-[#ea580c]/20 bg-[#ea580c]/5 px-3 py-1 mt-2.5 self-start"
               style={{ borderRadius: 8 }}
             >
               <Text 
-                className="text-[9px] font-bold text-[#ea580c] uppercase tracking-wider"
+                className="text-xs font-bold text-[#ea580c] uppercase tracking-wider"
                 style={{ fontFamily: systemFont }}
               >
                 Logged Sessions: {workoutCount}
