@@ -97,7 +97,8 @@ CREATE TABLE IF NOT EXISTS public.routine_exercises (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     routine_id UUID NOT NULL REFERENCES public.routines(id) ON DELETE CASCADE,
     exercise_id TEXT NOT NULL REFERENCES public.exercises(id) ON DELETE CASCADE,
-    order_index INTEGER NOT NULL
+    order_index INTEGER NOT NULL,
+    notes TEXT
 );
 
 ALTER TABLE public.routine_exercises ENABLE ROW LEVEL SECURITY;
