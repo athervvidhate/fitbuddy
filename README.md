@@ -1,56 +1,122 @@
-# Welcome to your Expo app 👋
+# FitBuddy 🏋️‍♂️
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+FitBuddy is a high-performance, universal mobile training tracker built with **Expo (React Native)** and **Supabase**. It provides a premium, responsive interface for logging workouts, designing custom training routines, tracking history, and importing data from other platforms.
 
-## Get started
+---
 
-1. Install dependencies
+## 🌟 Core Features
 
-   ```bash
-   npm install
-   ```
+### 1. Global Persistent Workout Logger
+- **Tab-Agnostic Persistence**: Start a workout and navigate anywhere in the app (Home, Routines, Feed, Analytics, Settings) while your session persists.
+- **Minimized Bottom Bar**: Minimize the active session into a floating volcanic orange dashboard bar that sits cleanly above the bottom navigation bar.
+- **Dynamic Rest Timer**: A premium, customizable rest timer overlay that triggers upon set completion, supporting quick increments (+30s) and manual dismissal.
+- **Exercise-Level Notes**: Add specific execution cues, tempos, or comments per exercise in active sessions.
 
-2. Start the app
+### 2. Routine Builder & Custom Templates
+- **Routine Templates**: Design and save multi-exercise routine structures to quickly trigger future workouts.
+- **In-App Exercise Reordering**: Responsive, layout-safe Up / Down controls to easily swap the chronological order of exercises in active sessions or routine builders.
+- **Exercise Notes Persistence**: Set default instructions and notes inside routine templates that automatically preload when starting a workout.
 
-   ```bash
-   npx expo start
-   ```
+### 3. Custom Exercise Creation
+- **On-the-Fly Creation**: Create custom exercises directly from selection lists.
+- **Guessed Muscle Grouping**: An intelligent keyword scanner automatically categorizes custom exercises (e.g. mapping "Dumbbell Bench Press" to *Chest* or "Leg Press" to *Legs*).
+- **Preset Custom Telemetry**: Select equipment types (Barbell, Dumbbell, Machine, Cable, Kettlebell, Band, Bodyweight, etc.) and tracking formats.
 
-In the output, you'll find options to open the app in a
+### 4. Premium CSV Training Importer
+- **Universal Import Support**: Import entire historical logs from platforms like Bolt, Hevy, or Strong.
+- **State-Machine CSV Parser**: An O(N) inline parser that handles quoted strings, escaped characters, and carriage returns safely.
+- **Target Weight Scaling**: Select the source weight unit (LBS vs. KG) in the importer interface. Weights in pounds are automatically converted to kilograms when synced with the database.
+- **Auto-Routine Generator**: Scans your imported CSV history and automatically constructs routine templates based on the latest logged session of each unique workout name.
+- **Detailed Progress Tracker**: Shows live progress percentages and import counts, concluding with a detailed statistics summary card.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 5. Display & Telemetry Scaling Preferences
+- **Adaptive Dark Mode**: A premium, high-contrast dark theme with volcanic orange highlights and glowing glassmorphism accents.
+- **Telemetry Scaling**: Configure default measurement preferences for Weight (kg / lbs), Distance (km / mi), and Body Measures (cm / in).
+- **Display Lock**: Toggle to prevent screen sleep, keeping the screen alive during intensive workout sessions.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 🛠️ Technology Stack
 
-When you're ready, run:
+- **Core Framework**: [Expo SDK 56](https://expo.dev) (React Native 0.85)
+- **Routing**: Expo Router (file-based navigation)
+- **Database & Auth**: [Supabase](https://supabase.com) (PostgreSQL, Real-time Sync, RLS Policies)
+- **Styling**: NativeWind (Tailwind CSS for React Native)
+- **Animations**: React Native Reanimated (fluid physics-based spring animations)
+- **Icons**: Lucide React Native
+- **Storage**: AsyncStorage (local draft caching)
 
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v18 or higher)
+- npm or yarn
+- A Supabase project
+
+### 1. Installation
+Clone the repository and install the project dependencies:
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Database Schema Setup
+Execute the SQL DDL statements located in [src/data/supabase_schema.sql](file:///Users/atherv/Projects/fitbuddy/src/data/supabase_schema.sql) in your Supabase project's SQL Editor to set up the tables:
+- `profiles`
+- `exercises`
+- `workouts`
+- `workout_exercises`
+- `workout_sets`
+- `routines`
+- `routine_exercises`
+- `routine_sets`
 
-### Other setup steps
+To populate the `exercises` table with the preloaded standard movements database, run the SQL seed file located in [src/data/supabase_seed.sql](file:///Users/atherv/Projects/fitbuddy/src/data/supabase_seed.sql).
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### 3. Environment Configuration
+Create a `.env` file in the root directory of the project and add your Supabase credentials:
+```env
+EXPO_PUBLIC_SUPABASE_URL=your-supabase-project-url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
 
-## Learn more
+### 4. Running the App
+Start the Metro bundler using Expo CLI:
+```bash
+# Start the bundler
+npm run start
 
-To learn more about developing your project with Expo, look at the following resources:
+# Run on iOS Simulator (requires macOS & Xcode)
+npm run ios
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# Run on Android Emulator (requires Android Studio)
+npm run android
 
-## Join the community
+# Run in Web Browser
+npm run web
+```
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 📂 Project Structure
+
+```
+fitbuddy/
+├── src/
+│   ├── app/                 # Expo Router file-based pages
+│   │   ├── (auth)/          # Authentication flow (Login, Signup)
+│   │   └── (tabs)/          # Main App Tabs (Home, Routines, Feed, Analytics, Settings)
+│   ├── components/          # Reusable UI components (ActiveWorkoutLogger, BackgroundGlows)
+│   ├── context/             # Global Providers (Auth, Theme, Units, Workout)
+│   ├── data/                # Data files (Supabase SQL schemas, seed data, local JSONs)
+│   ├── lib/                 # Service integrations (Supabase client)
+│   └── utils/               # Helper utilities (CSV parser & database importer)
+├── tailwind.config.js       # Tailwind configuration for NativeWind
+└── tsconfig.json            # TypeScript configuration
+```
+
+---
+
+## 🔒 Security
+Row Level Security (RLS) is enabled across all tables in Supabase. Users can only read and write their own workout logs, routine structures, and custom exercises, keeping personal telemetry private and secure.
