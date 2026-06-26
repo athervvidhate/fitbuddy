@@ -716,12 +716,12 @@ export default function RoutinesScreen() {
                   <View className="flex-row items-center gap-2">
                     <TouchableOpacity
                       onPress={() => handleStartRoutine(routine)}
-                      className="bg-[#ea580c] px-4.5 py-2.5 flex-row items-center gap-1.5"
-                      style={{ borderRadius: 12 }}
+                      className="bg-[#ea580c] px-6 py-3 flex-row items-center gap-2"
+                      style={{ borderRadius: 14 }}
                     >
-                      <Dumbbell color="#ffffff" size={14} strokeWidth={2.5} />
+                      <Dumbbell color="#ffffff" size={15} strokeWidth={2.5} />
                       <Text 
-                        className="text-white font-bold text-xs uppercase tracking-wider"
+                        className="text-white font-bold text-sm uppercase tracking-wider"
                         style={{ fontFamily: systemFont }}
                       >
                         Start
