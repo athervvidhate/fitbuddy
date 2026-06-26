@@ -91,6 +91,53 @@ type CSVWorkout = {
   exercises: CSVExercise[];
 };
 
+// Robust CSV Date parser to handle non-US DD/MM/YYYY formats and YYYY-MM-DD formats accurately
+export function parseCSVDate(dateStr: string): Date {
+  const cleanStr = dateStr.replace(/"/g, '').trim();
+  
+  // 1. Try DD/MM/YYYY HH:MM:SS or DD/MM/YYYY
+  const dmyRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/;
+  const match = cleanStr.match(dmyRegex);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1; // 0-indexed
+    const year = parseInt(match[3], 10);
+    const hour = match[4] ? parseInt(match[4], 10) : 0;
+    const minute = match[5] ? parseInt(match[5], 10) : 0;
+    const second = match[6] ? parseInt(match[6], 10) : 0;
+    
+    const d = new Date(year, month, day, hour, minute, second);
+    if (!isNaN(d.getTime())) {
+      return d;
+    }
+  }
+
+  // 2. Try YYYY-MM-DD HH:MM:SS or YYYY-MM-DD
+  const ymdRegex = /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/;
+  const ymdMatch = cleanStr.match(ymdRegex);
+  if (ymdMatch) {
+    const year = parseInt(ymdMatch[1], 10);
+    const month = parseInt(ymdMatch[2], 10) - 1;
+    const day = parseInt(ymdMatch[3], 10);
+    const hour = ymdMatch[4] ? parseInt(ymdMatch[4], 10) : 0;
+    const minute = ymdMatch[5] ? parseInt(ymdMatch[5], 10) : 0;
+    const second = ymdMatch[6] ? parseInt(ymdMatch[6], 10) : 0;
+    
+    const d = new Date(year, month, day, hour, minute, second);
+    if (!isNaN(d.getTime())) {
+      return d;
+    }
+  }
+
+  // 3. Fallback to native date parsing
+  const d = new Date(cleanStr);
+  if (!isNaN(d.getTime())) {
+    return d;
+  }
+
+  throw new Error('Invalid date format');
+}
+
 // 3. Main Importer logic
 export async function importCSVWorkouts(
   csvText: string,
@@ -156,11 +203,11 @@ export async function importCSVWorkouts(
 
     if (!rawDate || !exerciseName) continue;
 
-    // Convert date to ISO string
+    // Convert date to ISO string using robust custom parsing to prevent future date offsets
     let isoDate: string;
     try {
-      // Handle timestamps like "2024-06-27 13:17:11"
-      isoDate = new Date(rawDate.replace(/"/g, '')).toISOString();
+      const parsedDate = parseCSVDate(rawDate);
+      isoDate = parsedDate.toISOString();
     } catch (e) {
       isoDate = new Date().toISOString(); // fallback
     }

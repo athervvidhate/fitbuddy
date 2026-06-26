@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { Alert } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { useUnits } from './UnitContext';
@@ -10,6 +11,8 @@ export type SetLog = {
   weight: string; // Keep as string for text inputs
   isCompleted: boolean;
   notes: string;
+  placeholderWeight?: string;
+  placeholderReps?: string;
 };
 
 export type ExerciseLog = {
@@ -51,10 +54,11 @@ const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
 
 const DRAFT_WORKOUT_KEY = '@fitbuddy_active_workout_draft';
 const KEEP_AWAKE_KEY = '@fitbuddy_keep_awake_setting';
+const OFFLINE_WORKOUTS_KEY = '@fitbuddy_offline_workouts';
 
 export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const { parseWeightInput, weightUnit } = useUnits();
+  const { parseWeightInput, displayWeightValue, weightUnit } = useUnits();
 
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -62,7 +66,11 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isLoadingDraft, setIsLoadingDraft] = useState(true);
   const [loggerVisible, setLoggerVisible] = useState(false);
 
+  // Cache user's last recorded sets for all exercises
+  const [lastRecorded, setLastRecorded] = useState<Record<string, { weight: number; reps: number }[]>>({});
+
   const timerRef = useRef<any>(null);
+  const saveDraftTimeoutRef = useRef<any>(null);
 
   // Load Keep Awake Preference & Active Workout Draft
   useEffect(() => {
@@ -96,11 +104,157 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     loadSettingsAndDraft();
   }, []);
 
-  // Timer Effect
+  // Fetch last recorded sets and sync offline workouts when user changes
+  useEffect(() => {
+    const initUserData = async () => {
+      if (!user) return;
+      await fetchLastRecordedValues();
+      await syncOfflineWorkouts();
+    };
+    initUserData();
+  }, [user]);
+
+  const fetchLastRecordedValues = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('workouts')
+        .select(`
+          completed_at,
+          workout_exercises (
+            exercise_id,
+            workout_sets (
+              weight,
+              reps,
+              set_index,
+              is_completed
+            )
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false });
+
+      if (error) throw error;
+
+      const map: Record<string, { weight: number; reps: number }[]> = {};
+      
+      data?.forEach((w: any) => {
+        w.workout_exercises?.forEach((we: any) => {
+          const exId = we.exercise_id;
+          if (exId && !map[exId]) {
+            const completedSets = (we.workout_sets || [])
+              .filter((s: any) => s.is_completed)
+              .sort((a: any, b: any) => a.set_index - b.set_index)
+              .map((s: any) => ({
+                weight: displayWeightValue(s.weight),
+                reps: s.reps,
+              }));
+            
+            if (completedSets.length > 0) {
+              map[exId] = completedSets;
+            }
+          }
+        });
+      });
+
+      setLastRecorded(map);
+    } catch (e) {
+      console.error('Failed to fetch last recorded sets:', e);
+    }
+  };
+
+  const syncOfflineWorkouts = async () => {
+    if (!user) return;
+    try {
+      const queueStr = await AsyncStorage.getItem(OFFLINE_WORKOUTS_KEY);
+      if (!queueStr) return;
+
+      const queue = JSON.parse(queueStr) as any[];
+      if (queue.length === 0) return;
+
+      console.log(`Syncing ${queue.length} offline workouts to Supabase...`);
+
+      for (let k = 0; k < queue.length; k++) {
+        const workout = queue[k];
+
+        // 1. Insert Workout Header
+        const { data: workoutData, error: wError } = await supabase
+          .from('workouts')
+          .insert({
+            user_id: user.id,
+            routine_id: workout.routineId,
+            name: workout.name,
+            started_at: workout.startedAt,
+            completed_at: workout.completedAt,
+            notes: workout.notes || '',
+          })
+          .select()
+          .single();
+
+        if (wError) throw wError;
+        const workoutId = workoutData.id;
+
+        // 2. Batch Insert Exercises
+        const exercisesToInsert = workout.exercises.map((ex: any, idx: number) => ({
+          workout_id: workoutId,
+          exercise_id: ex.id,
+          order_index: idx,
+          notes: ex.notes || '',
+        }));
+
+        const { data: insertedExercises, error: exError } = await supabase
+          .from('workout_exercises')
+          .insert(exercisesToInsert)
+          .select('id, exercise_id, order_index');
+
+        if (exError) throw exError;
+
+        // 3. Batch Insert Sets
+        const setsToInsert: any[] = [];
+        workout.exercises.forEach((ex: any, idx: number) => {
+          const insertedEx = insertedExercises.find(
+            (ie: any) => ie.exercise_id === ex.id && ie.order_index === idx
+          );
+          if (!insertedEx) return;
+
+          ex.sets.forEach((set: any, setIdx: number) => {
+            setsToInsert.push({
+              workout_exercise_id: insertedEx.id,
+              set_index: setIdx,
+              reps: set.reps,
+              weight: set.weight, // already in KG
+              is_completed: true,
+              notes: set.notes || '',
+            });
+          });
+        });
+
+        if (setsToInsert.length > 0) {
+          const { error: setsError } = await supabase
+            .from('workout_sets')
+            .insert(setsToInsert);
+          if (setsError) throw setsError;
+        }
+      }
+
+      await AsyncStorage.removeItem(OFFLINE_WORKOUTS_KEY);
+      console.log('Offline workouts synced successfully.');
+    } catch (e) {
+      console.error('Failed to sync offline workouts:', e);
+    }
+  };
+
+  // Timer Effect: Calculate elapsed seconds from startedAt to prevent drift
   useEffect(() => {
     if (activeWorkout) {
+      const startTime = new Date(activeWorkout.startedAt).getTime();
+      const now = new Date().getTime();
+      setElapsedSeconds(Math.max(0, Math.floor((now - startTime) / 1000)));
+
       timerRef.current = setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
+        const tickNow = new Date().getTime();
+        const diffSeconds = Math.max(0, Math.floor((tickNow - startTime) / 1000));
+        setElapsedSeconds(diffSeconds);
       }, 1000);
     } else {
       if (timerRef.current) {
@@ -123,17 +277,27 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [activeWorkout, keepAwakeEnabled]);
 
-  // Persist Workout Draft whenever it changes
-  const saveDraft = async (workout: ActiveWorkout | null) => {
-    try {
-      if (workout) {
-        await AsyncStorage.setItem(DRAFT_WORKOUT_KEY, JSON.stringify(workout));
-      } else {
-        await AsyncStorage.removeItem(DRAFT_WORKOUT_KEY);
-      }
-    } catch (e) {
-      console.error('Failed to save draft', e);
+  // Persist Workout Draft with a debouncer to prevent UI input lag
+  const saveDraft = (workout: ActiveWorkout | null) => {
+    if (saveDraftTimeoutRef.current) {
+      clearTimeout(saveDraftTimeoutRef.current);
     }
+
+    if (workout === null) {
+      AsyncStorage.removeItem(DRAFT_WORKOUT_KEY).catch((e) =>
+        console.error('Failed to clear draft', e)
+      );
+      return;
+    }
+
+    // Debounce the disk write by 1000ms
+    saveDraftTimeoutRef.current = setTimeout(async () => {
+      try {
+        await AsyncStorage.setItem(DRAFT_WORKOUT_KEY, JSON.stringify(workout));
+      } catch (e) {
+        console.error('Failed to save draft', e);
+      }
+    }, 1000);
   };
 
   const setKeepAwakeEnabled = async (enabled: boolean) => {
@@ -166,11 +330,24 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const addExerciseToWorkout = (exercise: { id: string; name: string; category: string }) => {
     if (!activeWorkout) return;
 
+    // Look up last recorded sets for this exercise to use as placeholders
+    const prevSets = lastRecorded[exercise.id];
+    const sets: SetLog[] = prevSets && prevSets.length > 0
+      ? prevSets.map((ps) => ({
+          reps: '',
+          weight: '',
+          isCompleted: false,
+          notes: '',
+          placeholderWeight: String(ps.weight),
+          placeholderReps: String(ps.reps),
+        }))
+      : [{ reps: '', weight: '', isCompleted: false, notes: '', placeholderWeight: '0', placeholderReps: '10' }];
+
     const newExercise: ExerciseLog = {
       id: exercise.id,
       name: exercise.name,
       category: exercise.category,
-      sets: [{ reps: '10', weight: '0', isCompleted: false, notes: '' }],
+      sets,
       notes: '',
     };
 
@@ -201,10 +378,16 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const targetExercise = updatedExercises[exerciseIndex];
     const lastSet = targetExercise.sets[targetExercise.sets.length - 1];
 
-    // Duplicate last set targets for quick progression
     const newSet: SetLog = lastSet
-      ? { ...lastSet, isCompleted: false, notes: '' }
-      : { reps: '10', weight: '0', isCompleted: false, notes: '' };
+      ? {
+          reps: '',
+          weight: '',
+          isCompleted: false,
+          notes: '',
+          placeholderWeight: lastSet.weight || lastSet.placeholderWeight || '0',
+          placeholderReps: lastSet.reps || lastSet.placeholderReps || '10',
+        }
+      : { reps: '', weight: '', isCompleted: false, notes: '', placeholderWeight: '0', placeholderReps: '10' };
 
     targetExercise.sets = [...targetExercise.sets, newSet];
     const updated = { ...activeWorkout, exercises: updatedExercises };
@@ -222,7 +405,7 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     // Ensure there's always at least one set
     if (targetExercise.sets.length === 0) {
-      targetExercise.sets = [{ reps: '10', weight: '0', isCompleted: false, notes: '' }];
+      targetExercise.sets = [{ reps: '', weight: '', isCompleted: false, notes: '', placeholderWeight: '0', placeholderReps: '10' }];
     }
 
     const updated = { ...activeWorkout, exercises: updatedExercises };
@@ -291,9 +474,21 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const finishWorkout = async (notes = '') => {
     if (!activeWorkout || !user) return;
 
+    // 1. Filter out exercises with 0 completed sets
+    const exercisesToSave = activeWorkout.exercises.filter(
+      (ex) => ex.sets.some((set) => set.isCompleted)
+    );
+
+    if (exercisesToSave.length === 0) {
+      Alert.alert('No Progress Saved', 'No completed sets were found in this session. The workout has been cancelled.');
+      cancelWorkout();
+      return;
+    }
+
+    const completedAt = new Date().toISOString();
+
     try {
-      // 1. Insert Workout Header in Supabase
-      const completedAt = new Date().toISOString();
+      // 1. Batch Insert Workout Header
       const { data: workoutData, error: workoutError } = await supabase
         .from('workouts')
         .insert({
@@ -310,42 +505,50 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (workoutError) throw workoutError;
       const workoutId = workoutData.id;
 
-      // 2. Insert Workout Exercises & Sets
-      for (let i = 0; i < activeWorkout.exercises.length; i++) {
-        const ex = activeWorkout.exercises[i];
-        
-        const { data: exData, error: exError } = await supabase
-          .from('workout_exercises')
-          .insert({
-            workout_id: workoutId,
-            exercise_id: ex.id,
-            order_index: i,
-            notes: ex.notes || '',
-          })
-          .select()
-          .single();
+      // 2. Batch Insert All Workout Exercises in a single query
+      const exercisesToInsert = exercisesToSave.map((ex, idx) => ({
+        workout_id: workoutId,
+        exercise_id: ex.id,
+        order_index: idx,
+        notes: ex.notes || '',
+      }));
 
-        if (exError) throw exError;
-        const workoutExerciseId = exData.id;
+      const { data: insertedExercises, error: exError } = await supabase
+        .from('workout_exercises')
+        .insert(exercisesToInsert)
+        .select('id, exercise_id, order_index');
 
-        // Save only completed sets (or save all but mark is_completed)
-        const setsToInsert = ex.sets.map((set, setIdx) => {
-          const rawWeight = parseFloat(set.weight) || 0;
-          const rawReps = parseInt(set.reps) || 0;
-          
-          // CONVERT weight to metric (KG) for storage in database
+      if (exError) throw exError;
+
+      // 3. Batch Insert All Completed Sets for All Exercises in a single query
+      const setsToInsert: any[] = [];
+      exercisesToSave.forEach((ex, idx) => {
+        const insertedEx = insertedExercises.find(
+          (ie: any) => ie.exercise_id === ex.id && ie.order_index === idx
+        );
+        if (!insertedEx) return;
+
+        const completedSets = ex.sets.filter((set) => set.isCompleted);
+        completedSets.forEach((set, setIdx) => {
+          // Fall back to gray placeholders if actual values are blank
+          const rawWeight = parseFloat(set.weight) || parseFloat(set.placeholderWeight || '0') || 0;
+          const rawReps = parseInt(set.reps) || parseInt(set.placeholderReps || '0') || 0;
+
+          // Convert weight to metric (KG) for storage in database
           const weightInKg = parseWeightInput(rawWeight);
 
-          return {
-            workout_exercise_id: workoutExerciseId,
+          setsToInsert.push({
+            workout_exercise_id: insertedEx.id,
             set_index: setIdx,
             reps: rawReps,
             weight: weightInKg,
-            is_completed: set.isCompleted,
-            notes: set.notes,
-          };
+            is_completed: true,
+            notes: set.notes || '',
+          });
         });
+      });
 
+      if (setsToInsert.length > 0) {
         const { error: setsError } = await supabase
           .from('workout_sets')
           .insert(setsToInsert);
@@ -353,11 +556,53 @@ export const WorkoutProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (setsError) throw setsError;
       }
 
-      // Successful sync, clear active state
+      // Successful sync, clear active state and refresh cache
       cancelWorkout();
+      fetchLastRecordedValues();
     } catch (e) {
-      console.error('Failed to log workout to database', e);
-      throw e;
+      console.warn('Supabase sync failed, saving workout offline:', e);
+      
+      // Offline saving fallback
+      try {
+        const offlineWorkout = {
+          routineId: activeWorkout.routineId,
+          name: activeWorkout.name,
+          startedAt: activeWorkout.startedAt,
+          completedAt: completedAt,
+          notes: notes,
+          exercises: exercisesToSave.map((ex) => {
+            const completedSets = ex.sets.filter((s) => s.isCompleted);
+            return {
+              id: ex.id,
+              notes: ex.notes || '',
+              sets: completedSets.map((set) => {
+                const rawWeight = parseFloat(set.weight) || parseFloat(set.placeholderWeight || '0') || 0;
+                const rawReps = parseInt(set.reps) || parseInt(set.placeholderReps || '0') || 0;
+                const weightInKg = parseWeightInput(rawWeight);
+                return {
+                  reps: rawReps,
+                  weight: weightInKg,
+                  notes: set.notes || '',
+                };
+              }),
+            };
+          }),
+        };
+
+        const queueStr = await AsyncStorage.getItem(OFFLINE_WORKOUTS_KEY);
+        const queue = queueStr ? JSON.parse(queueStr) : [];
+        queue.push(offlineWorkout);
+        await AsyncStorage.setItem(OFFLINE_WORKOUTS_KEY, JSON.stringify(queue));
+
+        Alert.alert(
+          'Offline Mode Enabled',
+          'You are currently offline. Your workout has been saved locally on this device and will be automatically uploaded when your connection is restored.'
+        );
+        cancelWorkout();
+      } catch (saveErr) {
+        console.error('Failed to save workout offline:', saveErr);
+        throw e; // Rethrow original error if offline save fails
+      }
     }
   };
 

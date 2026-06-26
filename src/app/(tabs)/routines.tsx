@@ -261,14 +261,15 @@ export default function RoutinesScreen() {
       ]
     );
   };
-
   const handleStartRoutine = (routine: RoutineData) => {
     const initialExercises: ExerciseLog[] = routine.routine_exercises.map((re) => {
       const sets: SetLog[] = re.routine_sets.map((rs) => ({
-        weight: String(displayWeightValue(rs.weight)),
-        reps: String(rs.reps),
+        weight: '',
+        reps: '',
         isCompleted: false,
         notes: rs.notes || '',
+        placeholderWeight: String(displayWeightValue(rs.weight)),
+        placeholderReps: String(rs.reps),
       }));
 
       return {
@@ -276,7 +277,7 @@ export default function RoutinesScreen() {
         name: re.exercises.name,
         category: re.exercises.category,
         notes: re.notes || '',
-        sets: sets.length > 0 ? sets : [{ weight: '', reps: '', isCompleted: false, notes: '' }],
+        sets: sets.length > 0 ? sets : [{ weight: '', reps: '', isCompleted: false, notes: '', placeholderWeight: '0', placeholderReps: '10' }],
       };
     });
 

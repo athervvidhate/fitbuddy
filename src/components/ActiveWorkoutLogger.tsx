@@ -12,7 +12,9 @@ import {
   Platform,
   Pressable,
   Dimensions,
+  Keyboard,
 } from 'react-native';
+
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useUnits } from '../context/UnitContext';
@@ -93,6 +95,8 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
       <View className="flex-1 px-1.5">
         <TextInput
           keyboardType="numeric"
+          placeholder={set.placeholderWeight || '0'}
+          placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
           className={`text-center text-sm py-3 font-bold h-12 border ${
             isDark ? 'bg-zinc-900/40 text-[#e2e2e5]' : 'bg-white text-zinc-900'
           }`}
@@ -103,9 +107,7 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
               : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#cbd5e1'),
           }}
           value={set.weight}
-          onChangeText={(text) => updateSetLog(exIdx, setIdx, { weight: text })}
-          placeholder="0"
-          placeholderTextColor={isDark ? '#444448' : '#a1a1aa'}
+          onChangeText={(val) => updateSetLog(exIdx, setIdx, { weight: val })}
           selectTextOnFocus
           onFocus={() => setFocusedField('weight')}
           onBlur={() => setFocusedField(null)}
@@ -115,7 +117,9 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
       {/* Reps Input */}
       <View className="flex-1 px-1.5">
         <TextInput
-          keyboardType="number-pad"
+          keyboardType="numeric"
+          placeholder={set.placeholderReps || '10'}
+          placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
           className={`text-center text-sm py-3 font-bold h-12 border ${
             isDark ? 'bg-zinc-900/40 text-[#e2e2e5]' : 'bg-white text-zinc-900'
           }`}
@@ -126,9 +130,7 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
               : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#cbd5e1'),
           }}
           value={set.reps}
-          onChangeText={(text) => updateSetLog(exIdx, setIdx, { reps: text })}
-          placeholder="0"
-          placeholderTextColor={isDark ? '#444448' : '#a1a1aa'}
+          onChangeText={(val) => updateSetLog(exIdx, setIdx, { reps: val })}
           selectTextOnFocus
           onFocus={() => setFocusedField('reps')}
           onBlur={() => setFocusedField(null)}
@@ -169,6 +171,32 @@ export function ActiveWorkoutLogger() {
   const { user } = useAuth();
   const { colors, isDark } = useTheme();
   const { weightUnit } = useUnits();
+  
+  const restEndTimeRef = useRef<number>(0);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardVisible(true);
+        setKeyboardHeight(e.endCoordinates?.height || 0);
+      }
+    );
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardVisible(false);
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
   
   const insets = useSafeAreaInsets();
   const bottomInset = insets.bottom;
@@ -289,19 +317,31 @@ export function ActiveWorkoutLogger() {
 
   const triggerRestTimer = (seconds: number) => {
     if (restTimerRef.current) clearInterval(restTimerRef.current);
+    const endTime = new Date().getTime() + seconds * 1000;
+    restEndTimeRef.current = endTime;
     setRestSeconds(seconds);
     setShowRestTimer(true);
 
     restTimerRef.current = setInterval(() => {
-      setRestSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(restTimerRef.current);
-          setShowRestTimer(false);
-          return 0;
-        }
-        return prev - 1;
-      });
+      const now = new Date().getTime();
+      const remaining = Math.max(0, Math.ceil((restEndTimeRef.current - now) / 1000));
+      setRestSeconds(remaining);
+      if (remaining <= 0) {
+        clearInterval(restTimerRef.current);
+        setShowRestTimer(false);
+      }
     }, 1000);
+  };
+
+  const handleExtendRest = () => {
+    restEndTimeRef.current += 30 * 1000;
+    setRestSeconds((prev) => prev + 30);
+  };
+
+  const handleCancelRest = () => {
+    if (restTimerRef.current) clearInterval(restTimerRef.current);
+    setRestSeconds(0);
+    setShowRestTimer(false);
   };
 
   useEffect(() => {
@@ -383,10 +423,10 @@ export function ActiveWorkoutLogger() {
             <Text className="text-[#ea580c] font-bold text-sm uppercase tracking-wider">Rest: {formatTime(restSeconds)}</Text>
           </View>
           <View className="flex-row items-center gap-2">
-            <TouchableOpacity onPress={() => setRestSeconds((prev) => prev + 30)} className={`border px-4.5 py-2.5 ${isDark ? 'bg-zinc-900 border-white/5' : 'bg-zinc-100 border-zinc-200'}`} style={{ borderRadius: 10 }}>
+            <TouchableOpacity onPress={handleExtendRest} className={`border px-4.5 py-2.5 ${isDark ? 'bg-zinc-900 border-white/5' : 'bg-zinc-100 border-zinc-200'}`} style={{ borderRadius: 10 }}>
               <Text className="text-[#ea580c] font-bold text-xs uppercase tracking-wider">+30s</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => { setRestSeconds(0); setShowRestTimer(false); }} className={`border px-4 py-2.5 ${isDark ? 'bg-red-950/30 border-red-500/20' : 'bg-red-50 border-red-200'}`} style={{ borderRadius: 10 }}>
+            <TouchableOpacity onPress={handleCancelRest} className={`border px-4 py-2.5 ${isDark ? 'bg-red-950/30 border-red-500/20' : 'bg-red-50 border-red-200'}`} style={{ borderRadius: 10 }}>
               <X size={12} color="#ff453a" strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
@@ -795,6 +835,33 @@ export function ActiveWorkoutLogger() {
                 )}
               </SafeAreaView>
             </View>
+          )}
+
+          {/* Floating Dismiss Keyboard Button */}
+          {keyboardVisible && (
+            <TouchableOpacity
+              onPress={() => Keyboard.dismiss()}
+              activeOpacity={0.8}
+              style={{
+                position: 'absolute',
+                bottom: Platform.OS === 'ios' ? keyboardHeight + 16 : 24,
+                right: 24,
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: '#ea580c',
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 6,
+                elevation: 8,
+                zIndex: 9999,
+              }}
+            >
+              <ChevronDown size={24} color="#ffffff" strokeWidth={2.5} />
+            </TouchableOpacity>
           )}
         </SafeAreaView>
       </Modal>
