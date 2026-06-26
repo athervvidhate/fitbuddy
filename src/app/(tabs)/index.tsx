@@ -48,13 +48,29 @@ export default function DashboardScreen() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Pagination states for high-performance infinite scrolling
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const ITEMS_PER_PAGE = 10;
+
   const systemFont = Platform.OS === 'ios' ? 'System' : 'sans-serif';
 
-  const fetchHistory = async () => {
+  const fetchHistory = async (reset = false) => {
     if (!user) return;
     try {
-      setLoadingHistory(true);
-      const { data, error } = await supabase
+      const startPage = reset ? 0 : page;
+      if (reset) {
+        setLoadingHistory(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const from = startPage * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+
+      const { data, error, count } = await supabase
         .from('workouts')
         .select(`
           id, name, started_at, completed_at, notes,
@@ -63,22 +79,38 @@ export default function DashboardScreen() {
             exercises (id, name, category),
             workout_sets (id, set_index, reps, weight, is_completed)
           )
-        `)
+        `, { count: 'exact' })
         .eq('user_id', user.id)
-        .order('completed_at', { ascending: false });
+        .order('completed_at', { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
-      setHistory(data || []);
+
+      const newWorkouts = data || [];
+      if (reset) {
+        setHistory(newWorkouts);
+        setPage(1);
+        setHasMore(newWorkouts.length === ITEMS_PER_PAGE);
+      } else {
+        setHistory((prev) => [...prev, ...newWorkouts]);
+        setPage(startPage + 1);
+        setHasMore(newWorkouts.length === ITEMS_PER_PAGE);
+      }
+
+      if (count !== null) {
+        setTotalCount(count);
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Error fetching workout history:', e);
     } finally {
       setLoadingHistory(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    fetchHistory();
+    fetchHistory(true);
   }, [user]);
 
   const handleQuickStart = () => {
@@ -109,9 +141,17 @@ export default function DashboardScreen() {
       <ScrollView
         style={{ flex: 1, backgroundColor: 'transparent' }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 140 }}
-        refreshControl = {
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchHistory(); }} tintColor="#ea580c" />
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchHistory(true); }} tintColor="#ea580c" />
         }
+        onScroll={(event) => {
+          const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+          const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 100;
+          if (isCloseToBottom && !loadingMore && hasMore && !loadingHistory) {
+            fetchHistory(false);
+          }
+        }}
+        scrollEventThrottle={16}
       >
         {/* Welcome Header */}
         <View className={`flex-row justify-between items-center mb-6 pb-4 border-b ${themeDivider}`}>
@@ -166,7 +206,7 @@ export default function DashboardScreen() {
           <View className="flex-1 gap-3.5">
             <View className={`flex-1 border p-4 justify-center h-[78px] ${themeCard}`} style={{ borderRadius: 20 }}>
               <Text className="text-zinc-500 text-xs font-bold" style={{ fontFamily: systemFont }}>Workouts Logged</Text>
-              <Text className={`text-lg font-bold mt-1 ${themeTextHeader}`} style={{ fontFamily: systemFont }}>{history.length}</Text>
+              <Text className={`text-lg font-bold mt-1 ${themeTextHeader}`} style={{ fontFamily: systemFont }}>{totalCount}</Text>
             </View>
             <View className={`flex-1 border p-4 justify-center h-[78px] ${themeCard}`} style={{ borderRadius: 20 }}>
               <Text className="text-zinc-500 text-xs font-bold" style={{ fontFamily: systemFont }}>Last Volume</Text>
@@ -218,6 +258,11 @@ export default function DashboardScreen() {
                 </View>
               );
             })
+          )}
+          {loadingMore && (
+            <View className="py-6 justify-center items-center">
+              <ActivityIndicator size="small" color="#ea580c" />
+            </View>
           )}
         </View>
       </ScrollView>
