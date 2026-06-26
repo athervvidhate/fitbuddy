@@ -1,0 +1,311 @@
+[
+  {
+    "id": "barbell-bench-press",
+    "name": "Barbell Bench Press",
+    "category": "Chest",
+    "instructions": [
+      "Lie flat on your back on a bench.",
+      "Grip the barbell with hands slightly wider than shoulder-width apart.",
+      "Unrack the bar and hold it straight over your chest.",
+      "Lower the bar slowly to your mid-chest, keeping elbows at a 45-degree angle.",
+      "Push the bar back up powerfully to the starting position, extending your arms fully."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=rT7DgcrgWys"
+  },
+  {
+    "id": "dumbbell-bench-press",
+    "name": "Dumbbell Bench Press",
+    "category": "Chest",
+    "instructions": [
+      "Sit on the edge of a flat bench with a dumbbell in each hand resting on your thighs.",
+      "Lie back on the bench, bringing the dumbbells to the sides of your chest with elbows bent.",
+      "Press the weights up over your chest until your arms are fully extended.",
+      "Lower the weights slowly and under control to the sides of your chest.",
+      "Repeat for the desired number of repetitions."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=VmB1G1K7vHM"
+  },
+  {
+    "id": "incline-dumbbell-press",
+    "name": "Incline Dumbbell Press",
+    "category": "Chest",
+    "instructions": [
+      "Set an incline bench to approximately 30-45 degrees.",
+      "Sit on the bench and lean back, holding dumbbells at the sides of your chest.",
+      "Press the dumbbells straight up over your chest, keeping your wrists straight.",
+      "Lower the dumbbells slowly until they are near the top of your chest.",
+      "Press the weights back up to the starting position."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=8iPuoV8FjeY"
+  },
+  {
+    "id": "chest-dips",
+    "name": "Chest Dips",
+    "category": "Chest",
+    "instructions": [
+      "Grab the parallel bars and press yourself up to the starting position.",
+      "Lean your torso slightly forward and bend your knees.",
+      "Lower your body by bending your elbows until your shoulders are below your elbows.",
+      "Push back up through your chest and triceps to return to the starting position."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=UXo7X_nlgv8"
+  },
+  {
+    "id": "cable-crossover",
+    "name": "Cable Crossover",
+    "category": "Chest",
+    "instructions": [
+      "Set pulleys on high position, select resistance, and hold handles in each hand.",
+      "Step forward between pulleys, leaning slightly forward, arms extended out to the sides.",
+      "Bring your hands together in a wide arc in front of your waist, squeezing your chest.",
+      "Return to the starting position slowly, feeling a stretch in your chest."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=W7McZJ8mI_Y"
+  },
+  {
+    "id": "push-up",
+    "name": "Push-Up",
+    "category": "Chest",
+    "instructions": [
+      "Start in a plank position with hands slightly wider than shoulder-width.",
+      "Keep your body in a straight line from head to heels.",
+      "Lower your chest toward the floor by bending your elbows.",
+      "Push yourself back up to the starting position, keeping your core engaged."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=IODxDxX7oi4"
+  },
+  {
+    "id": "barbell-back-squat",
+    "name": "Barbell Back Squat",
+    "category": "Legs",
+    "instructions": [
+      "Rest the barbell on your upper back/traps, gripping it firmly.",
+      "Stand with feet shoulder-width apart, toes pointed slightly outward.",
+      "Inhale, brace your core, and lower your hips down and back as if sitting in a chair.",
+      "Squat down until your thighs are at least parallel to the floor.",
+      "Drive through your heels to push yourself back up to a standing position."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=ultW1Gwy05c"
+  },
+  {
+    "id": "romanian-deadlift",
+    "name": "Romanian Deadlift",
+    "category": "Legs",
+    "instructions": [
+      "Stand holding a barbell or dumbbells in front of your thighs with an overhand grip.",
+      "Keep your feet hip-width apart and knees slightly bent.",
+      "Hinge at your hips, pushing them back as you lower the weight down the front of your legs.",
+      "Keep your back flat and chest up, lowering until you feel a deep stretch in your hamstrings.",
+      "Contract your hamstrings and glutes to pull your torso back upright."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=JCXUYtwSS08"
+  },
+  {
+    "id": "leg-press",
+    "name": "Leg Press",
+    "category": "Legs",
+    "instructions": [
+      "Sit in the leg press machine and place your feet flat on the platform, shoulder-width apart.",
+      "Lower the safety locks and bend your knees to lower the platform towards your chest.",
+      "Stop when your knees reach a 90-degree angle; do not let your lower back lift off the pad.",
+      "Push the platform away by extending your legs, but do not lock your knees."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=CHDxE4S8K7o"
+  },
+  {
+    "id": "bulgarian-split-squat",
+    "name": "Bulgarian Split Squat",
+    "category": "Legs",
+    "instructions": [
+      "Stand about two feet in front of a bench, holding dumbbells at your sides.",
+      "Place the top of your rear foot flat on the bench behind you.",
+      "Lower your hips until your rear knee is near the floor and your front thigh is parallel.",
+      "Drive through your front heel to return to the standing position."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=2C-uNgKwPLE"
+  },
+  {
+    "id": "barbell-deadlift",
+    "name": "Barbell Deadlift",
+    "category": "Back",
+    "instructions": [
+      "Stand with mid-foot under the barbell, feet hip-width apart.",
+      "Bend over and grab the bar with a shoulder-width grip.",
+      "Bend your knees until your shins touch the bar, keeping your back flat.",
+      "Lift your chest, brace your core, and stand up with the weight, keeping the bar close to your body.",
+      "Lock out your hips and knees, then lower the bar under control."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=op9kVnSso6Q"
+  },
+  {
+    "id": "barbell-row",
+    "name": "Barbell Row",
+    "category": "Back",
+    "instructions": [
+      "Stand over a barbell with feet hip-width apart. Hinge forward at the hips, keeping back flat.",
+      "Grip the bar with an overhand grip, slightly wider than shoulder-width.",
+      "Pull the bar up toward your lower chest/belly button, pulling your elbows back.",
+      "Squeeze your shoulder blades at the top, then lower the bar slowly to the start."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=FWJR5Ve84QY"
+  },
+  {
+    "id": "lat-pulldown",
+    "name": "Lat Pulldown",
+    "category": "Back",
+    "instructions": [
+      "Sit in the lat pulldown machine and adjust the knee pads.",
+      "Grip the bar with a wide overhand grip.",
+      "Pull the bar down to your upper chest while leaning slightly back and squeezing your shoulder blades.",
+      "Control the bar back up to the starting position, letting your lats stretch."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=CAwf7n6Luuc"
+  },
+  {
+    "id": "pull-up",
+    "name": "Pull-Up",
+    "category": "Back",
+    "instructions": [
+      "Grasp the pull-up bar with an overhand grip, hands slightly wider than shoulders.",
+      "Hang with arms fully extended. Pull your body up by driving your elbows down.",
+      "Continue pulling until your chin clears the bar, squeezing your shoulder blades.",
+      "Lower your body slowly back to a dead hang position."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=eGo4IYlbE5g"
+  },
+  {
+    "id": "one-arm-dumbbell-row",
+    "name": "One-Arm Dumbbell Row",
+    "category": "Back",
+    "instructions": [
+      "Place one knee and same-side hand on a flat bench for support.",
+      "Keep your back flat and parallel to the floor, holding a dumbbell in the opposite hand.",
+      "Row the dumbbell up to your hip, keeping your elbow tucked close to your side.",
+      "Squeeze your lat at the top, then lower the dumbbell back down fully."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=dFzUjASpaOE"
+  },
+  {
+    "id": "overhead-press",
+    "name": "Overhead Press",
+    "category": "Shoulders",
+    "instructions": [
+      "Stand with feet shoulder-width apart, holding a barbell at shoulder height with an overhand grip.",
+      "Brace your core, squeeze your glutes, and press the bar straight up overhead.",
+      "Push your head forward slightly at the top as the bar clears your face.",
+      "Lower the bar under control back to your upper chest."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=2yjwXTZQDDI"
+  },
+  {
+    "id": "dumbbell-lateral-raise",
+    "name": "Dumbbell Lateral Raise",
+    "category": "Shoulders",
+    "instructions": [
+      "Stand upright holding dumbbells at your sides, palms facing inward.",
+      "With a slight bend in your elbows, raise your arms out to the sides in a wide arc.",
+      "Raise the weights until your arms are parallel to the floor, pinkies pointing slightly up.",
+      "Lower the dumbbells slowly back to the starting position."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=3VcKaXatLD0"
+  },
+  {
+    "id": "dumbbell-shoulder-press",
+    "name": "Dumbbell Shoulder Press",
+    "category": "Shoulders",
+    "instructions": [
+      "Sit on an upright bench, holding dumbbells at shoulder height with an overhand grip.",
+      "Press the dumbbells straight up over your head until your arms are fully extended.",
+      "Lower the weights slowly back down to shoulder level, keeping elbows pointing slightly forward."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=HzIiRyf9V1M"
+  },
+  {
+    "id": "barbell-bicep-curl",
+    "name": "Barbell Bicep Curl",
+    "category": "Biceps",
+    "instructions": [
+      "Stand straight holding a barbell with an underhand grip, hands shoulder-width apart.",
+      "Keep your elbows close to your torso and curl the bar up toward your shoulders.",
+      "Squeeze your biceps at the top, then lower the barbell slowly back to the start."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=i1YgFZPb8e8"
+  },
+  {
+    "id": "dumbbell-hammer-curl",
+    "name": "Dumbbell Hammer Curl",
+    "category": "Biceps",
+    "instructions": [
+      "Stand holding dumbbells at your sides, palms facing each other (neutral grip).",
+      "Keep your elbows tucked and curl the weights up, maintaining the neutral wrist position.",
+      "Squeeze your biceps and forearms at the top, then lower slowly."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=zC3nLlEvin4"
+  },
+  {
+    "id": "triceps-pushdown",
+    "name": "Triceps Pushdown",
+    "category": "Triceps",
+    "instructions": [
+      "Attach a rope or bar to a high cable pulley and grip it with elbows tucked to your sides.",
+      "Extend your arms fully, pushing the attachment down toward your thighs.",
+      "Contract your triceps hard at the bottom, then return slowly to the starting position."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=2-LAMcpzODU"
+  },
+  {
+    "id": "skull-crushers",
+    "name": "Skull Crushers",
+    "category": "Triceps",
+    "instructions": [
+      "Lie on a flat bench holding an EZ-bar or dumbbells over your forehead with arms straight.",
+      "Bend at your elbows to lower the weight toward your forehead, keeping upper arms stationary.",
+      "Extend your arms to push the weight back up to the starting position."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=d_KZxkY_0cM"
+  },
+  {
+    "id": "ab-wheel-rollout",
+    "name": "Core",
+    "category": "Core",
+    "instructions": [
+      "Kneel on the floor, holding the ab wheel handles under your shoulders.",
+      "Roll the wheel forward, extending your body into a straight line without letting your hips sag.",
+      "Engage your abs to pull yourself back to the starting position."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=34Vp1W0o6Wk"
+  },
+  {
+    "id": "hanging-leg-raise",
+    "name": "Hanging Leg Raise",
+    "category": "Core",
+    "instructions": [
+      "Hang from a pull-up bar with a straight grip and legs hanging down.",
+      "Keeping your legs straight, raise them up until they are parallel to the floor.",
+      "Lower your legs slowly under control to prevent swinging."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=hdng3Nm1x_E"
+  },
+  {
+    "id": "plank",
+    "name": "Plank",
+    "category": "Core",
+    "instructions": [
+      "Place your forearms on the floor, elbows aligned under shoulders, and extend legs behind.",
+      "Support your weight on your toes and forearms, keeping your body in a perfectly straight line.",
+      "Engage your abs, glutes, and thighs, holding the position without letting your hips sag."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=pvIjsGMCwZY"
+  },
+  {
+    "id": "running-treadmill",
+    "name": "Treadmill Running",
+    "category": "Cardio",
+    "instructions": [
+      "Step onto the treadmill, set your target speed and incline, and start walking.",
+      "Transition into a jog or run, maintaining upright posture and swinging your arms naturally.",
+      "Cool down by walking for 2-3 minutes before stopping."
+    ],
+    "video_url": "https://www.youtube.com/watch?v=8i3VqdSzjK4"
+  }
+]
