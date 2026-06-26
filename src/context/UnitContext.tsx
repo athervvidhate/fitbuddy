@@ -31,10 +31,35 @@ const KG_TO_LBS = 2.20462;
 const KM_TO_MI = 0.621371;
 const CM_TO_IN = 0.393701;
 
+// Helper to detect default units based on device locale (Hermes Intl API)
+const getDefaultUnits = () => {
+  let weight: WeightUnit = 'kg';
+  let distance: DistanceUnit = 'km';
+  let length: LengthUnit = 'cm';
+
+  try {
+    const locale = Intl.DateTimeFormat().resolvedOptions().locale || '';
+    const parts = locale.split(/[-_]/);
+    const countryCode = parts[parts.length - 1]?.toUpperCase() || '';
+    
+    if (countryCode === 'US') {
+      weight = 'lbs';
+      distance = 'mi';
+      length = 'in';
+    }
+  } catch (e) {
+    console.warn('Failed to detect device locale, defaulting to metric:', e);
+  }
+
+  return { weight, distance, length };
+};
+
+const defaultUnits = getDefaultUnits();
+
 export const UnitProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [weightUnit, setWeightUnitState] = useState<WeightUnit>('kg');
-  const [distanceUnit, setDistanceUnitState] = useState<DistanceUnit>('km');
-  const [lengthUnit, setLengthUnitState] = useState<LengthUnit>('cm');
+  const [weightUnit, setWeightUnitState] = useState<WeightUnit>(defaultUnits.weight);
+  const [distanceUnit, setDistanceUnitState] = useState<DistanceUnit>(defaultUnits.distance);
+  const [lengthUnit, setLengthUnitState] = useState<LengthUnit>(defaultUnits.length);
 
   useEffect(() => {
     const loadUnits = async () => {
