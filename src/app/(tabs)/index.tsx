@@ -183,8 +183,8 @@ export default function DashboardScreen() {
           {loadingHistory ? (
             <View className="py-12 justify-center items-center"><ActivityIndicator size="small" color="#ea580c" /></View>
           ) : history.length === 0 ? (
-            <View className={`border p-8 items-center justify-center ${themeCard}`} style={{ borderRadius: 24 }}>
-              <AlertCircle size={24} color="#5c5c61" className="mb-2.5" />
+            <View className={`border p-8 items-center justify-center gap-2.5 ${themeCard}`} style={{ borderRadius: 24 }}>
+              <AlertCircle size={24} color="#5c5c61" />
               <Text className={`font-bold text-xs mb-1.5 ${themeTextSub}`} style={{ fontFamily: systemFont }}>No workouts logged yet</Text>
             </View>
           ) : (
@@ -196,8 +196,8 @@ export default function DashboardScreen() {
                   <View className="flex-row justify-between items-start mb-3">
                     <View className="flex-1 pr-2">
                       <Text className={`font-bold text-base uppercase tracking-wide ${themeTextHeader}`} style={{ fontFamily: systemFont }}>{workout.name}</Text>
-                      <View className="flex-row items-center mt-2">
-                        <Calendar size={12} color="#71717a" className="mr-1.5" />
+                      <View className="flex-row items-center gap-1.5 mt-2">
+                        <Calendar size={12} color="#71717a" />
                         <Text className="text-zinc-500 text-xs font-semibold" style={{ fontFamily: systemFont }}>{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} | {durationMins} mins</Text>
                       </View>
                     </View>
@@ -207,8 +207,8 @@ export default function DashboardScreen() {
                   </View>
                   <View className={`border-t pt-4 mt-3 ${themeDivider}`}>
                     {workout.workout_exercises?.slice(0, 3).map((we: any, idx: number) => (
-                      <View key={we.id || idx} className="flex-row items-center mt-2">
-                        <Dumbbell size={12} color="#ea580c" className="mr-2" strokeWidth={2} />
+                      <View key={we.id || idx} className="flex-row items-center gap-2 mt-3">
+                        <Dumbbell size={12} color="#ea580c" strokeWidth={2} />
                         <Text className={`text-xs font-bold uppercase tracking-wider ${themeTextSub}`} style={{ fontFamily: systemFont }}>
                           {we.exercises?.name || 'Exercise'} <Text className="text-[#ea580c]">({we.workout_sets?.filter((s: any) => s.is_completed).length} sets)</Text>
                         </Text>

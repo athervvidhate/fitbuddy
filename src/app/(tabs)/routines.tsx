@@ -733,8 +733,8 @@ export default function RoutinesScreen() {
                 {/* Exercises Preview inside Routine Card */}
                 <View className={`border-t pt-3.5 mt-4 ${themeDivider}`}>
                   {routine.routine_exercises?.map((re, idx) => (
-                    <View key={re.id || idx} className="flex-row items-center mt-2">
-                      <Dumbbell size={12} color="#ea580c" className="mr-2" />
+                    <View key={re.id || idx} className="flex-row items-center gap-2 mt-3">
+                      <Dumbbell size={12} color="#ea580c" />
                       <Text 
                         className={`text-xs font-bold uppercase tracking-wider ${themeTextSub}`}
                         style={{ fontFamily: systemFont }}

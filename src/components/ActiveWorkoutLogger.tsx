@@ -358,8 +358,8 @@ export function ActiveWorkoutLogger() {
           style={{ bottom: loggerBottomPosition, borderRadius: 20, elevation: 10, zIndex: 99 }}
         >
           <View className="flex-1 pr-3">
-            <View className="flex-row items-center">
-              <Flame size={12} color="#ea580c" className="mr-1.5" />
+            <View className="flex-row items-center gap-1.5">
+              <Flame size={12} color="#ea580c" />
               <Text className="text-[#ea580c] font-bold text-xs uppercase tracking-wider">Workout in progress</Text>
             </View>
             <Text className={`font-semibold text-sm mt-1.5 ${themeTextHeader}`} numberOfLines={1}>
@@ -378,8 +378,8 @@ export function ActiveWorkoutLogger() {
           className={`absolute top-14 left-4 right-4 border py-4 px-4.5 flex-row justify-between items-center z-50 ${isDark ? 'bg-zinc-950/90 border-[#ea580c]/20' : 'bg-white border-[#ea580c]/30'}`}
           style={{ borderRadius: 18, elevation: 8 }}
         >
-          <View className="flex-row items-center">
-            <Clock size={16} color="#ea580c" className="mr-2" />
+          <View className="flex-row items-center gap-2">
+            <Clock size={16} color="#ea580c" />
             <Text className="text-[#ea580c] font-bold text-sm uppercase tracking-wider">Rest: {formatTime(restSeconds)}</Text>
           </View>
           <View className="flex-row items-center gap-2">
@@ -417,8 +417,8 @@ export function ActiveWorkoutLogger() {
             contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 }}
           >
             <View className={`border p-3.5 mb-6 ${themeCard}`} style={{ borderRadius: 18 }}>
-              <View className="flex-row items-center mb-1">
-                <FileText size={11} color="#71717a" className="mr-1.5" />
+              <View className="flex-row items-center gap-1.5 mb-1">
+                <FileText size={11} color="#71717a" />
                 <Text className="text-[10px] font-bold text-zinc-500 uppercase">Workout Notes</Text>
               </View>
               <TextInput 
@@ -432,8 +432,8 @@ export function ActiveWorkoutLogger() {
             </View>
 
             {activeWorkout?.exercises.length === 0 ? (
-              <View className={`py-16 items-center justify-center border border-dashed ${themeBorder}`} style={{ borderRadius: 24 }}>
-                <Dumbbell size={28} color="#5c5c61" className="mb-3" />
+              <View className={`py-16 items-center justify-center gap-3 border border-dashed ${themeBorder}`} style={{ borderRadius: 24 }}>
+                <Dumbbell size={28} color="#5c5c61" />
                 <Text className={`font-bold text-sm ${themeTextSub}`}>No exercises added</Text>
               </View>
             ) : (
@@ -528,10 +528,10 @@ export function ActiveWorkoutLogger() {
             
             <TouchableOpacity 
               onPress={() => { setSearchQuery(''); setSelectedCategory('All'); setShowExerciseModal(true); }} 
-              className={`border border-dashed py-4 items-center justify-center flex-row mb-16 ${themeCard}`} 
+              className={`border border-dashed py-4 items-center justify-center flex-row gap-2 mb-16 ${themeCard}`} 
               style={{ borderRadius: 20 }}
             >
-              <Plus color="#ea580c" size={14} className="mr-2" />
+              <Plus color="#ea580c" size={14} />
               <Text className="text-[#ea580c] font-bold text-xs uppercase">Add Exercise</Text>
             </TouchableOpacity>
           </ScrollView>
