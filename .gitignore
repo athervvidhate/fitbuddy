@@ -45,3 +45,7 @@ example
 
 # agent skills
 .agents/
+.claude/
+
+# wayfinder maps / scratch tickets
+.scratch/
