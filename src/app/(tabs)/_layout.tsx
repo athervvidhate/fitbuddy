@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, Dumbbell, Users, TrendingUp, Settings } from 'lucide-react-native';
+import { Home, Dumbbell, TrendingUp, Settings } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { ActiveWorkoutLogger } from '../../components/ActiveWorkoutLogger';
 
@@ -86,15 +86,6 @@ export default function TabsLayout() {
             title: 'Routines',
             tabBarIcon: ({ color, focused }) => (
               <TabIcon IconComponent={Dumbbell} color={color} focused={focused} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="social"
-          options={{
-            title: 'Feed',
-            tabBarIcon: ({ color, focused }) => (
-              <TabIcon IconComponent={Users} color={color} focused={focused} />
             ),
           }}
         />
