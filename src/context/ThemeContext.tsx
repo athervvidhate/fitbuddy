@@ -1,91 +1,95 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useColorScheme } from 'nativewind';
+import { colorScheme } from 'nativewind';
+
+type ThemeColors = {
+  dark: string;
+  card: string;
+  border: string;
+  accent: string;
+  success: string;
+  warning: string;
+  text: string;
+  textMuted: string;
+};
 
 type ThemeContextType = {
   isDark: boolean;
   toggleTheme: () => void;
-  colors: {
-    dark: string;
-    card: string;
-    border: string;
-    accent: string;
-    success: string;
-    warning: string;
-    text: string;
-    textMuted: string;
-  };
+  colors: ThemeColors;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const THEME_STORAGE_KEY = '@fitbuddy_theme';
 
-// Hardcoded premium values for Javascript-rendered components (like Charts)
-const brandColors = {
+// Both palettes are built once at module scope so `colors` is referentially stable per theme.
+// Consumers that only read colors never see a new object identity unless the theme actually flips.
+const darkColors: ThemeColors = {
   dark: '#050505',
   card: '#0d0d11',
   border: '#1f1f23',
   accent: '#8b5cf6',   // Neon Violet
   success: '#10b981',  // Emerald Green
   warning: '#f59e0b',  // Amber
-  textDark: '#f4f4f5',  // Light gray for dark mode
-  textLight: '#18181b', // Dark gray for light mode
-  textMutedDark: '#8e8e93',
-  textMutedLight: '#71717a',
+  text: '#f4f4f5',
+  textMuted: '#8e8e93',
+};
+
+const lightColors: ThemeColors = {
+  dark: '#fcfcfa',
+  card: '#ffffff',
+  border: '#e4e4e7',
+  accent: '#8b5cf6',
+  success: '#10b981',
+  warning: '#f59e0b',
+  text: '#18181b',
+  textMuted: '#71717a',
 };
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { colorScheme, setColorScheme } = useColorScheme();
-  const [isDark, setIsDark] = useState(true); // Default to dark mode for premium look
+  // Default to dark mode for premium look
+  const [isDark, setIsDark] = useState(true);
+
+  // Lets toggleTheme keep a stable identity without reading stale state.
+  const isDarkRef = useRef(isDark);
+  isDarkRef.current = isDark;
 
   useEffect(() => {
-    // Load persisted theme
     const loadTheme = async () => {
       try {
         const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (savedTheme === 'dark' || savedTheme === 'light') {
-          setColorScheme(savedTheme);
-          setIsDark(savedTheme === 'dark');
-        } else {
-          // Default to dark mode for premium look
-          setColorScheme('dark');
-          setIsDark(true);
-        }
+        const nextIsDark = savedTheme === 'light' ? false : true;
+        colorScheme.set(nextIsDark ? 'dark' : 'light');
+        setIsDark(nextIsDark);
       } catch (e) {
         console.error('Failed to load theme preference', e);
+        colorScheme.set('dark');
       }
     };
     loadTheme();
   }, []);
 
-  const toggleTheme = async () => {
-    const nextTheme = isDark ? 'light' : 'dark';
-    try {
-      setColorScheme(nextTheme);
-      setIsDark(!isDark);
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, nextTheme);
-    } catch (e) {
-      console.error('Failed to save theme preference', e);
-    }
-  };
+  const toggleTheme = useCallback(() => {
+    const next = !isDarkRef.current;
+    // colorScheme.set is NativeWind's imperative API. Deliberately not useColorScheme():
+    // that hook subscribes the provider to scheme changes, which made every toggle render
+    // the provider twice and cascade to all consumers twice.
+    colorScheme.set(next ? 'dark' : 'light');
+    setIsDark(next);
+    AsyncStorage.setItem(THEME_STORAGE_KEY, next ? 'dark' : 'light').catch((e) =>
+      console.error('Failed to save theme preference', e)
+    );
+  }, []);
 
-  const themeColors = {
-    dark: isDark ? brandColors.dark : '#fcfcfa',
-    card: isDark ? brandColors.card : '#ffffff',
-    border: isDark ? brandColors.border : '#e4e4e7',
-    accent: brandColors.accent,
-    success: brandColors.success,
-    warning: brandColors.warning,
-    text: isDark ? brandColors.textDark : brandColors.textLight,
-    textMuted: isDark ? brandColors.textMutedDark : brandColors.textMutedLight,
-  };
+  const colors = isDark ? darkColors : lightColors;
 
-  return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme, colors: themeColors }}>
-      {children}
-    </ThemeContext.Provider>
+  const value = useMemo(
+    () => ({ isDark, toggleTheme, colors }),
+    [isDark, toggleTheme, colors]
   );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };
 
 export const useTheme = () => {
