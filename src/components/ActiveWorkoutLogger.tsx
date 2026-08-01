@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,13 @@ import {
   ChevronDown
 } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+
+const categories = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Cardio'];
+const systemFont = Platform.OS === 'ios' ? 'System' : 'sans-serif';
+const customExerciseTypes = [
+  'Barbell', 'Dumbbell', 'Machine', 'Cable', 'Kettlebell', 'Band',
+  'Weighted Bodyweight', 'Assisted Bodyweight', 'Reps', 'Duration', 'Distance', 'Other',
+];
 
 // Isolated Set Row Component for high-performance input editing and micro-animations
 interface SetRowProps {
@@ -245,8 +252,41 @@ export function ActiveWorkoutLogger() {
   const [showRestTimer, setShowRestTimer] = useState(false);
   const restTimerRef = useRef<any>(null);
 
-  const categories = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Cardio'];
-  const systemFont = Platform.OS === 'ios' ? 'System' : 'sans-serif';
+  // Keeps the logger's contents mounted through the dismiss animation, then drops them.
+  // Unmounting the instant loggerVisible flips false would blank the sheet mid-slide-out.
+  const [renderLoggerContent, setRenderLoggerContent] = useState(loggerVisible);
+
+  useEffect(() => {
+    if (loggerVisible) {
+      setRenderLoggerContent(true);
+      return;
+    }
+    const timeout = setTimeout(() => setRenderLoggerContent(false), 400);
+    return () => clearTimeout(timeout);
+  }, [loggerVisible]);
+
+  // Merge + filter the exercise catalogue once per input change rather than on every render.
+  // This previously ran inside an inline IIFE in the picker's ScrollView, so it re-ran on every
+  // keystroke and on every unrelated re-render of the logger.
+  const mergedExercises = useMemo(() => {
+    const merged: any[] = [...exercisesData];
+    customExercises.forEach((ce) => {
+      if (!merged.some((me) => me.id === ce.id)) {
+        merged.push(ce);
+      }
+    });
+    return merged;
+  }, [customExercises]);
+
+  const filteredExercises = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return mergedExercises.filter((ex) => {
+      const matchesSearch =
+        ex.name.toLowerCase().includes(query) || ex.category.toLowerCase().includes(query);
+      const matchesCategory = selectedCategory === 'All' || ex.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [mergedExercises, searchQuery, selectedCategory]);
 
   const fetchCustomExercises = async () => {
     if (!user) return;
@@ -434,7 +474,14 @@ export function ActiveWorkoutLogger() {
       )}
 
       {/* 3. FULL SCREEN LOGGER MODAL */}
+      {/*
+        React Native renders Modal children even while visible={false}. This component is mounted
+        permanently by the tabs layout, and the workout timer ticks WorkoutContext every second —
+        so a *minimized* workout was re-rendering this entire tree (every exercise card, SetRow and
+        TextInput) once per second, invisibly. Gating makes a closed logger free.
+      */}
       <Modal visible={loggerVisible} animationType="slide" presentationStyle="fullScreen">
+        {renderLoggerContent && (
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.dark }}>
           <BackgroundGlows />
           <View className={`flex-row justify-between items-center px-4 py-4 border-b ${themeBorder} ${themeHeaderBg}`}>
@@ -662,36 +709,18 @@ export function ActiveWorkoutLogger() {
                 </View>
                 
                 <ScrollView className="flex-1 px-4 pt-3">
-                  {(() => {
-                    const merged = [...exercisesData];
-                    customExercises.forEach((ce) => {
-                      if (!merged.some((me) => me.id === ce.id)) {
-                        merged.push(ce);
-                      }
-                    });
-                    
-                    const filtered = merged.filter((ex) => {
-                      const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        ex.category.toLowerCase().includes(searchQuery.toLowerCase());
-                      const matchesCategory = selectedCategory === 'All' || ex.category === selectedCategory;
-                      return matchesSearch && matchesCategory;
-                    });
-
-                    if (filtered.length === 0) {
-                      return (
-                        <View className="py-16 items-center justify-center">
-                          <Text className="text-zinc-500 text-sm font-bold uppercase tracking-wider">No Matching Records</Text>
-                        </View>
-                      );
-                    }
-
-                    return filtered.map((ex) => (
+                  {filteredExercises.length === 0 ? (
+                    <View className="py-16 items-center justify-center">
+                      <Text className="text-zinc-500 text-sm font-bold uppercase tracking-wider">No Matching Records</Text>
+                    </View>
+                  ) : (
+                    filteredExercises.map((ex) => (
                       <TouchableOpacity key={ex.id} onPress={() => { addExerciseToWorkout(ex); setShowExerciseModal(false); }} className={`border p-4 mb-3 flex-row justify-between items-center ${themeCard}`} style={{ borderRadius: 18 }}>
                         <View className="flex-1 pr-2"><Text className={`font-semibold text-sm ${themeTextHeader}`}>{ex.name}</Text><Text className="text-[#ea580c] text-[10px] font-semibold mt-1">{ex.category}{getExerciseTypeLabel(ex) ? ` • ${getExerciseTypeLabel(ex)}` : ''}</Text></View>
                         <View className={`w-7 h-7 border items-center justify-center ${isDark ? 'bg-zinc-900/80' : 'bg-zinc-100'}`} style={{ borderRadius: 100 }}><Plus color="#ea580c" size={14} /></View>
                       </TouchableOpacity>
-                    ));
-                  })()}
+                    ))
+                  )}
                 </ScrollView>
 
                 {/* CREATE CUSTOM EXERCISE OVERLAY */}
@@ -791,7 +820,7 @@ export function ActiveWorkoutLogger() {
                       {/* Exercise Type presets */}
                       <Text className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Exercise Type</Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
-                        {['Barbell', 'Dumbbell', 'Machine', 'Cable', 'Kettlebell', 'Band', 'Weighted Bodyweight', 'Assisted Bodyweight', 'Reps', 'Duration', 'Distance', 'Other'].map((type) => (
+                        {customExerciseTypes.map((type) => (
                           <TouchableOpacity
                             key={type}
                             onPress={() => setCustomExType(type)}
@@ -864,6 +893,7 @@ export function ActiveWorkoutLogger() {
             </TouchableOpacity>
           )}
         </SafeAreaView>
+        )}
       </Modal>
     </>
   );
