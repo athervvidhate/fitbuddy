@@ -24,9 +24,8 @@ import {
   FolderPlus, 
   Plus, 
   Edit, 
-  Trash2, 
-  Share2, 
-  Dumbbell, 
+  Trash2,
+  Dumbbell,
   Folder, 
   X, 
   ChevronRight,
@@ -56,8 +55,6 @@ type RoutineData = {
   name: string;
   description: string;
   folder_id: string | null;
-  is_shared: boolean;
-  likes_count: number;
   routine_exercises: RoutineExerciseData[];
 };
 
@@ -96,12 +93,6 @@ export default function RoutinesScreen() {
   const [routineFolderId, setRoutineFolderId] = useState<string | null>(null);
   const [builderExercises, setBuilderExercises] = useState<any[]>([]);
   const [savingRoutine, setSavingRoutine] = useState(false);
-
-  // Share Routine states
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [shareRoutine, setShareRoutine] = useState<RoutineData | null>(null);
-  const [shareDescription, setShareDescription] = useState('');
-  const [sharing, setSharing] = useState(false);
 
   // Custom Exercise States
   const [customExercises, setCustomExercises] = useState<any[]>([]);
@@ -145,8 +136,6 @@ export default function RoutinesScreen() {
           name,
           description,
           folder_id,
-          is_shared,
-          likes_count,
           routine_exercises (
             id,
             exercise_id,
@@ -282,29 +271,6 @@ export default function RoutinesScreen() {
     });
 
     startWorkout(routine.name, routine.id, initialExercises);
-  };
-
-  const handleShareRoutine = async () => {
-    if (!shareRoutine) return;
-    setSharing(true);
-    try {
-      const { error } = await supabase
-        .from('routines')
-        .update({
-          is_shared: true,
-          description: shareDescription.trim(),
-        })
-        .eq('id', shareRoutine.id);
-
-      if (error) throw error;
-      setShowShareModal(false);
-      fetchData();
-      Alert.alert('Success', 'Routine template shared with the community feed.');
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to share routine.');
-    } finally {
-      setSharing(false);
-    }
   };
 
   // Routine Builder Operations
@@ -746,19 +712,8 @@ export default function RoutinesScreen() {
                   ))}
                 </View>
 
-                {/* Card Actions (Edit, Delete, Share) */}
+                {/* Card Actions (Edit, Delete) */}
                 <View className="flex-row justify-end items-center gap-2 mt-4 pt-3 border-t border-white/5">
-                  <TouchableOpacity
-                    onPress={() => {
-                      setShareRoutine(routine);
-                      setShareDescription(routine.description || '');
-                      setShowShareModal(true);
-                    }}
-                    className={`p-2 border ${isDark ? 'bg-zinc-900/80 border-white/5' : 'bg-zinc-100 border-zinc-200'}`}
-                    style={{ borderRadius: 10 }}
-                  >
-                    <Share2 size={13} color="#8b5cf6" strokeWidth={2} />
-                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => openBuilder(routine)}
                     className={`p-2 border ${isDark ? 'bg-zinc-900/80 border-white/5' : 'bg-zinc-100 border-zinc-200'}`}
@@ -836,77 +791,6 @@ export default function RoutinesScreen() {
                   style={{ fontFamily: systemFont }}
                 >
                   Create Folder
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* SHARE ROUTINE DIALOG */}
-      <Modal visible={showShareModal} transparent animationType="fade">
-        <View 
-          className="flex-1 justify-center items-center px-6"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.82)' }}
-        >
-          <View 
-            className={`border p-6 w-full ${isDark ? 'bg-zinc-950/90 border-white/10' : 'bg-white border-zinc-200'}`}
-            style={{ borderRadius: 24, elevation: 8 }}
-          >
-            <View className="flex-row justify-between items-center mb-4">
-              <Text 
-                className={`text-sm font-bold uppercase tracking-wider ${themeTextHeader}`}
-                style={{ fontFamily: systemFont }}
-              >
-                Share Routine Template
-              </Text>
-              <TouchableOpacity 
-                onPress={() => setShowShareModal(false)} 
-                className={`p-1 border ${isDark ? 'border-white/5 bg-zinc-900' : 'border-zinc-200 bg-zinc-100'}`}
-                style={{ borderRadius: 100 }}
-              >
-                <X size={12} color="#71717a" strokeWidth={2} />
-              </TouchableOpacity>
-            </View>
-
-            <Text 
-              className="text-[10px] text-zinc-500 mb-4 leading-relaxed font-bold uppercase tracking-wider"
-              style={{ fontFamily: systemFont }}
-            >
-              Sharing this routine publishes it to the community discovery feed.
-            </Text>
-
-            <TextInput
-              className={`border px-4 py-3 text-xs mb-5 h-20 leading-relaxed ${
-                isDark ? 'bg-zinc-900/50 text-[#e2e2e5]' : 'bg-zinc-50 text-zinc-900'
-              }`}
-              style={{
-                borderRadius: 14,
-                borderColor: focusedField === 'share' ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1'),
-              }}
-              placeholder="Add instructions or description for the community..."
-              placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
-              value={shareDescription}
-              onChangeText={setShareDescription}
-              multiline
-              onFocus={() => setFocusedField('share')}
-              onBlur={() => setFocusedField(null)}
-            />
-
-            <TouchableOpacity
-              onPress={handleShareRoutine}
-              disabled={sharing}
-              className="w-full py-3.5 bg-[#ea580c] items-center justify-center"
-              style={{ borderRadius: 14 }}
-            >
-              {sharing ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text 
-                  className="text-white font-bold text-xs uppercase tracking-wider"
-                  style={{ fontFamily: systemFont }}
-                >
-                  Share with Community
                 </Text>
               )}
             </TouchableOpacity>
