@@ -8,14 +8,21 @@ import { ThemeProvider } from '../context/ThemeContext';
 import { UnitProvider } from '../context/UnitContext';
 import { WorkoutProvider } from '../context/WorkoutContext';
 import { BackgroundGlows } from '../components/background-glows';
+import { useInterFonts } from '../theme/fonts';
 
 function RootLayoutContent() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const fontsReady = useInterFonts();
   const segments = useSegments();
   const router = useRouter();
 
+  // Hold the existing overlay until Inter is ready as well as auth. Rendering in the system face
+  // and swapping later would visibly reflow every screen on cold start — Inter and SF Pro have
+  // different metrics. useInterFonts returns true on load failure so a bad font can't block boot.
+  const isLoading = isAuthLoading || !fontsReady;
+
   useEffect(() => {
-    if (isLoading) return;
+    if (isAuthLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
 
@@ -30,7 +37,7 @@ function RootLayoutContent() {
         router.replace('/(tabs)');
       }
     }
-  }, [user, isLoading, segments]);
+  }, [user, isAuthLoading, segments]);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#08080a' }}>
