@@ -11,7 +11,9 @@ export type ThemeName = 'dark' | 'light';
 
 export type TypeToken =
   | 'display' | 'title1' | 'title2' | 'heading'
-  | 'body' | 'bodyStrong' | 'callout' | 'label' | 'caption';
+  | 'body' | 'bodyStrong' | 'callout' | 'label' | 'caption'
+  /** Platform chrome only — see the note in tokens.js. */
+  | 'tabLabel';
 
 export type TypeStyle = {
   fontSize: number;

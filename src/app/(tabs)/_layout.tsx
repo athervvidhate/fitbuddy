@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, Platform } from 'react-native';
+import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, Dumbbell, TrendingUp, Settings } from 'lucide-react-native';
-import { useTheme } from '../../context/ThemeContext';
 import { ActiveWorkoutLogger } from '../../components/ActiveWorkoutLogger';
+import { fontFamily, type as typeScale } from '../../theme';
+import { useThemeTokens } from '../../theme/useThemeTokens';
 
 interface TabIconProps {
   IconComponent: any;
@@ -26,47 +27,38 @@ function TabIcon({ IconComponent, color, focused }: TabIconProps) {
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
-  const bottomInset = insets.bottom;
-  const { colors, isDark } = useTheme();
-  
-  // Clean floating position above the home indicator
-  const floatingBottom = bottomInset > 0 ? bottomInset : 16;
+  const t = useThemeTokens();
 
-  const systemFont = Platform.OS === 'ios' ? 'System' : 'sans-serif';
+  // Clean floating position above the home indicator
+  const floatingBottom = insets.bottom > 0 ? insets.bottom : t.spacing.lg;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.dark }}>
+    <View style={{ flex: 1, backgroundColor: t.color.bg }}>
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: '#ea580c', // Volcanic Orange
-          tabBarInactiveTintColor: isDark ? '#5c5c61' : '#8e8e93', // Muted Slate
+          tabBarActiveTintColor: t.color.accent,
+          tabBarInactiveTintColor: t.color.textTertiary,
           tabBarStyle: {
-            backgroundColor: isDark ? 'rgba(15, 15, 20, 0.82)' : 'rgba(255, 255, 255, 0.90)',
+            backgroundColor: t.color.surface,
             borderWidth: 1,
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+            borderColor: t.color.border,
             position: 'absolute',
             bottom: floatingBottom,
-            left: 16,
-            right: 16,
+            left: t.spacing.lg,
+            right: t.spacing.lg,
             height: 62,
-            borderRadius: 28,
+            borderRadius: t.radius.xxl,
             paddingBottom: 0,
             borderTopWidth: 1,
-            borderTopColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
-            // Premium ambient shadows to separate the floating bar
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 10 },
-            shadowOpacity: isDark ? 0.45 : 0.12,
-            shadowRadius: 20,
-            elevation: 10,
+            borderTopColor: t.color.border,
+            ...t.elevation.overlay,
           },
           tabBarLabelStyle: {
-            fontFamily: systemFont,
-            fontSize: 10,
-            fontWeight: '600',
+            fontFamily: fontFamily.medium,
+            fontSize: typeScale.tabLabel.fontSize,
+            letterSpacing: typeScale.tabLabel.letterSpacing,
             textTransform: 'none',
-            letterSpacing: 0.2,
             marginTop: 2,
           },
         }}

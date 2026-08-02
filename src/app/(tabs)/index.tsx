@@ -1,271 +1,330 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  ActivityIndicator,
-  SafeAreaView,
-  RefreshControl,
-  Platform,
-  Pressable,
-  Dimensions,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { useUnits } from '../../context/UnitContext';
 import { useWorkout } from '../../context/WorkoutContext';
 import { supabase } from '../../lib/supabase';
 import { BackgroundGlows } from '../../components/background-glows';
-import { 
-  Flame, 
-  Calendar, 
-  Dumbbell, 
-  ChevronRight, 
-  AlertCircle
-} from 'lucide-react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { Button, Card, Screen, Text } from '../../components/ui';
+import { useThemeTokens } from '../../theme/useThemeTokens';
+import { AlertCircle, Calendar, Dumbbell } from 'lucide-react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-const { width } = Dimensions.get('window');
+const ITEMS_PER_PAGE = 10;
+
+/** Height reserved when the floating "workout in progress" bar is showing, so it insets the
+ *  list instead of covering it. The bar is absolutely positioned by ActiveWorkoutLogger. */
+const IN_PROGRESS_BAR_SPACE = 96;
+
+type WorkoutRow = {
+  id: string;
+  name: string;
+  started_at: string;
+  completed_at: string;
+  notes: string | null;
+  workout_exercises?: any[];
+};
+
+function workoutVolume(workout: WorkoutRow) {
+  let volume = 0;
+  workout.workout_exercises?.forEach((we: any) => {
+    we.workout_sets?.forEach((set: any) => {
+      if (set.is_completed) volume += (set.weight || 0) * (set.reps || 0);
+    });
+  });
+  return volume;
+}
+
+const HistoryCard = React.memo(function HistoryCard({
+  workout,
+  formatWeight,
+}: {
+  workout: WorkoutRow;
+  formatWeight: (n: number) => string;
+}) {
+  const t = useThemeTokens();
+  const date = new Date(workout.completed_at);
+  const durationMins = Math.max(
+    0,
+    Math.round(
+      (new Date(workout.completed_at).getTime() - new Date(workout.started_at).getTime()) / 60000
+    )
+  );
+
+  return (
+    <Card style={{ marginBottom: t.spacing.md }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: t.spacing.md }}>
+        <View style={{ flex: 1 }}>
+          <Text variant="heading" numberOfLines={1}>
+            {workout.name}
+          </Text>
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: t.spacing.xs,
+              marginTop: t.spacing.xs,
+            }}
+          >
+            <Calendar size={14} color={t.color.textTertiary} />
+            <Text variant="callout" color="textSecondary" tabular>
+              {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {durationMins} min
+            </Text>
+          </View>
+        </View>
+        <View
+          style={{
+            backgroundColor: t.color.accentSoft,
+            borderRadius: t.radius.pill,
+            paddingHorizontal: t.spacing.md,
+            paddingVertical: t.spacing.xs,
+            alignSelf: 'flex-start',
+          }}
+        >
+          <Text variant="label" color="accent" tabular>
+            {formatWeight(workoutVolume(workout))}
+          </Text>
+        </View>
+      </View>
+
+      {workout.workout_exercises?.length ? (
+        <View
+          style={{
+            marginTop: t.spacing.md,
+            paddingTop: t.spacing.md,
+            borderTopWidth: 1,
+            borderTopColor: t.color.borderSoft,
+            gap: t.spacing.sm,
+          }}
+        >
+          {workout.workout_exercises.slice(0, 3).map((we: any, idx: number) => (
+            <View
+              key={we.id || idx}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}
+            >
+              <Dumbbell size={14} color={t.color.accent} strokeWidth={2} />
+              <Text variant="callout" color="textSecondary" style={{ flex: 1 }} numberOfLines={1}>
+                {we.exercises?.name || 'Exercise'}
+              </Text>
+              <Text variant="callout" color="textTertiary" tabular>
+                {we.workout_sets?.filter((s: any) => s.is_completed).length} sets
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </Card>
+  );
+});
 
 export default function DashboardScreen() {
   const { profile, user } = useAuth();
-  const { colors, isDark } = useTheme();
   const { formatWeight, weightUnit } = useUnits();
+  const { startWorkout, activeWorkout } = useWorkout();
+  const t = useThemeTokens();
 
-  // Premium adaptive theme tokens
-  const themeCard = isDark ? 'bg-zinc-950/60 border-white/5' : 'bg-white border-zinc-200/80';
-  const themeTextHeader = isDark ? 'text-[#e2e2e5]' : 'text-zinc-900';
-  const themeTextSub = isDark ? 'text-zinc-400' : 'text-zinc-600';
-  const themeHeaderBg = isDark ? 'bg-zinc-950/60 border-white/5' : 'bg-zinc-100/90 border-zinc-200';
-  const themeBorder = isDark ? 'border-white/5' : 'border-zinc-200/80';
-  const themeDivider = isDark ? 'border-white/5' : 'border-zinc-200/60';
-
-  const { 
-    startWorkout,
-  } = useWorkout();
-
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<WorkoutRow[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Pagination states for high-performance infinite scrolling
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
-  const ITEMS_PER_PAGE = 10;
 
-  const systemFont = Platform.OS === 'ios' ? 'System' : 'sans-serif';
+  const fetchHistory = useCallback(
+    async (reset = false) => {
+      if (!user) return;
+      try {
+        const startPage = reset ? 0 : page;
+        reset ? setLoadingHistory(true) : setLoadingMore(true);
 
-  const fetchHistory = async (reset = false) => {
-    if (!user) return;
-    try {
-      const startPage = reset ? 0 : page;
-      if (reset) {
-        setLoadingHistory(true);
-      } else {
-        setLoadingMore(true);
-      }
-
-      const from = startPage * ITEMS_PER_PAGE;
-      const to = from + ITEMS_PER_PAGE - 1;
-
-      const { data, error, count } = await supabase
-        .from('workouts')
-        .select(`
-          id, name, started_at, completed_at, notes,
-          workout_exercises (
-            id, order_index,
-            exercises (id, name, category),
-            workout_sets (id, set_index, reps, weight, is_completed)
+        const from = startPage * ITEMS_PER_PAGE;
+        const { data, error, count } = await supabase
+          .from('workouts')
+          .select(
+            `id, name, started_at, completed_at, notes,
+             workout_exercises (
+               id, order_index,
+               exercises (id, name, category),
+               workout_sets (id, set_index, reps, weight, is_completed)
+             )`,
+            { count: 'exact' }
           )
-        `, { count: 'exact' })
-        .eq('user_id', user.id)
-        .order('completed_at', { ascending: false })
-        .range(from, to);
+          .eq('user_id', user.id)
+          .order('completed_at', { ascending: false })
+          .range(from, from + ITEMS_PER_PAGE - 1);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      const newWorkouts = data || [];
-      if (reset) {
-        setHistory(newWorkouts);
-        setPage(1);
-        setHasMore(newWorkouts.length === ITEMS_PER_PAGE);
-      } else {
-        setHistory((prev) => [...prev, ...newWorkouts]);
-        setPage(startPage + 1);
-        setHasMore(newWorkouts.length === ITEMS_PER_PAGE);
+        const rows = (data || []) as WorkoutRow[];
+        setHistory((prev) => (reset ? rows : [...prev, ...rows]));
+        setPage(reset ? 1 : startPage + 1);
+        setHasMore(rows.length === ITEMS_PER_PAGE);
+        if (count !== null) setTotalCount(count);
+      } catch (e) {
+        console.error('Error fetching workout history:', e);
+      } finally {
+        setLoadingHistory(false);
+        setLoadingMore(false);
+        setRefreshing(false);
       }
-
-      if (count !== null) {
-        setTotalCount(count);
-      }
-    } catch (e) {
-      console.error('Error fetching workout history:', e);
-    } finally {
-      setLoadingHistory(false);
-      setLoadingMore(false);
-      setRefreshing(false);
-    }
-  };
+    },
+    [user, page]
+  );
 
   useEffect(() => {
     fetchHistory(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const handleQuickStart = () => {
-    startWorkout('Blank Session');
-  };
-
-  const getWorkoutVolume = (workout: any) => {
-    let volume = 0;
-    workout.workout_exercises?.forEach((we: any) => {
-      we.workout_sets?.forEach((set: any) => {
-        if (set.is_completed) {
-          volume += (set.weight || 0) * (set.reps || 0);
-        }
-      });
-    });
-    return volume;
-  };
-
   const quickStartScale = useSharedValue(1);
-  const quickStartAnimatedStyle = useAnimatedStyle(() => ({
+  const quickStartStyle = useAnimatedStyle(() => ({
     transform: [{ scale: quickStartScale.value }],
   }));
 
+  const lastVolume = useMemo(
+    () => (history.length > 0 ? formatWeight(workoutVolume(history[0])) : `0 ${weightUnit}`),
+    [history, formatWeight, weightUnit]
+  );
+
+  const onScroll = useCallback(
+    (event: any) => {
+      const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+      const nearBottom =
+        layoutMeasurement.height + contentOffset.y >= contentSize.height - 100;
+      if (nearBottom && !loadingMore && hasMore && !loadingHistory) fetchHistory(false);
+    },
+    [loadingMore, hasMore, loadingHistory, fetchHistory]
+  );
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.dark }}>
+    <View style={{ flex: 1, backgroundColor: t.color.bg }}>
       <BackgroundGlows />
-      
-      <ScrollView
-        style={{ flex: 1, backgroundColor: 'transparent' }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 140 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchHistory(true); }} tintColor="#ea580c" />
-        }
-        onScroll={(event) => {
-          const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-          const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 100;
-          if (isCloseToBottom && !loadingMore && hasMore && !loadingHistory) {
-            fetchHistory(false);
-          }
-        }}
+      <Screen
+        onScroll={onScroll}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchHistory(true);
+            }}
+            tintColor={t.color.accent}
+          />
+        }
       >
-        {/* Welcome Header */}
-        <View className={`flex-row justify-between items-center mb-6 pb-4 border-b ${themeDivider}`}>
-          <View>
-            <Text className="text-zinc-500 text-xs font-bold tracking-wider" style={{ fontFamily: systemFont }}>
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </Text>
-            <Text className={`text-xl font-bold mt-1.5 ${themeTextHeader}`} style={{ fontFamily: systemFont }}>
-              Welcome, {profile?.username || 'Friend'}
-            </Text>
-          </View>
+        <View style={{ marginBottom: t.spacing.xl }}>
+          <Text variant="callout" color="textSecondary">
+            {new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </Text>
+          <Text variant="title1" style={{ marginTop: t.spacing.xs }}>
+            Welcome, {profile?.username || 'Friend'}
+          </Text>
         </View>
 
-        {/* Quick Start & Stats Cards */}
-        <View className="flex-row gap-4 mb-6">
+        <View style={{ flexDirection: 'row', gap: t.spacing.md, marginBottom: t.spacing.xl }}>
           <Pressable
-            onPress={handleQuickStart}
-            onPressIn={() => { quickStartScale.value = withSpring(0.96); }}
-            onPressOut={() => { quickStartScale.value = withSpring(1); }}
-            className="flex-[1.2]"
+            onPress={() => startWorkout('Blank Session')}
+            onPressIn={() => {
+              quickStartScale.value = withSpring(0.97);
+            }}
+            onPressOut={() => {
+              quickStartScale.value = withSpring(1);
+            }}
+            style={{ flex: 1.2 }}
+            accessibilityRole="button"
           >
-            <Animated.View
-              style={[
-                quickStartAnimatedStyle,
-                {
-                  borderRadius: 24,
-                  backgroundColor: isDark ? 'rgba(20, 20, 25, 0.7)' : '#ffffff',
-                  borderWidth: 1,
-                  borderColor: isDark ? 'rgba(234, 88, 12, 0.25)' : '#ea580c',
-                  padding: 20,
-                  height: 168,
+            <Animated.View style={quickStartStyle}>
+              <Card
+                elevation="raised"
+                style={{
+                  height: 176,
                   justifyContent: 'space-between',
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: isDark ? 0.35 : 0.1,
-                  shadowRadius: 16,
-                  elevation: 6,
-                }
-              ]}
-            >
-              <View>
-                <Text className={`text-base font-bold tracking-wide uppercase ${themeTextHeader}`} style={{ fontFamily: systemFont }}>Quick Start</Text>
-                <Text className={`text-xs mt-2.5 leading-relaxed ${themeTextSub}`} style={{ fontFamily: systemFont }}>Start a blank session and log your progress.</Text>
-              </View>
-              <View className="flex-row items-center gap-2">
-                <Text className="text-[#ea580c] font-bold text-xs uppercase tracking-wider" style={{ fontFamily: systemFont }}>Start Workout</Text>
-                <ChevronRight size={12} color="#ea580c" strokeWidth={3} />
-              </View>
+                  borderColor: t.color.accent,
+                }}
+              >
+                <View>
+                  <Text variant="heading">Quick start</Text>
+                  <Text
+                    variant="callout"
+                    color="textSecondary"
+                    style={{ marginTop: t.spacing.sm }}
+                  >
+                    Start a blank session and log your progress.
+                  </Text>
+                </View>
+                <Text variant="bodyStrong" color="accent">
+                  Start workout →
+                </Text>
+              </Card>
             </Animated.View>
           </Pressable>
 
-          <View className="flex-1 gap-3.5">
-            <View className={`flex-1 border p-4 justify-center h-[78px] ${themeCard}`} style={{ borderRadius: 20 }}>
-              <Text className="text-zinc-500 text-xs font-bold" style={{ fontFamily: systemFont }}>Workouts Logged</Text>
-              <Text className={`text-lg font-bold mt-1 ${themeTextHeader}`} style={{ fontFamily: systemFont }}>{totalCount}</Text>
-            </View>
-            <View className={`flex-1 border p-4 justify-center h-[78px] ${themeCard}`} style={{ borderRadius: 20 }}>
-              <Text className="text-zinc-500 text-xs font-bold" style={{ fontFamily: systemFont }}>Last Volume</Text>
-              <Text className="text-sm font-bold text-[#ea580c] mt-1" style={{ fontFamily: systemFont }} numberOfLines={1}>
-                {history.length > 0 ? formatWeight(getWorkoutVolume(history[0])) : `0 ${weightUnit}`}
+          <View style={{ flex: 1, gap: t.spacing.md }}>
+            <Card padding="md" style={{ flex: 1, justifyContent: 'center' }}>
+              <Text variant="label" color="textSecondary">
+                Workouts logged
               </Text>
-            </View>
+              <Text variant="title2" tabular style={{ marginTop: t.spacing.xs }}>
+                {totalCount}
+              </Text>
+            </Card>
+            <Card padding="md" style={{ flex: 1, justifyContent: 'center' }}>
+              <Text variant="label" color="textSecondary">
+                Last volume
+              </Text>
+              <Text
+                variant="bodyStrong"
+                color="accent"
+                tabular
+                numberOfLines={1}
+                style={{ marginTop: t.spacing.xs }}
+              >
+                {lastVolume}
+              </Text>
+            </Card>
           </View>
         </View>
 
-        {/* Workout History */}
-        <View className="mb-24">
-          <Text className="text-xs font-bold text-zinc-500 mb-4 ml-1 uppercase tracking-wider" style={{ fontFamily: systemFont }}>Workout History</Text>
-          {loadingHistory ? (
-            <View className="py-12 justify-center items-center"><ActivityIndicator size="small" color="#ea580c" /></View>
-          ) : history.length === 0 ? (
-            <View className={`border p-8 items-center justify-center gap-2.5 ${themeCard}`} style={{ borderRadius: 24 }}>
-              <AlertCircle size={24} color="#5c5c61" />
-              <Text className={`font-bold text-xs mb-1.5 ${themeTextSub}`} style={{ fontFamily: systemFont }}>No workouts logged yet</Text>
-            </View>
-          ) : (
-            history.map((workout) => {
-              const date = new Date(workout.completed_at);
-              const durationMins = Math.round((new Date(workout.completed_at).getTime() - new Date(workout.started_at).getTime()) / 60000);
-              return (
-                <View key={workout.id} className={`border p-5 mb-4 ${themeCard}`} style={{ borderRadius: 24 }}>
-                  <View className="flex-row justify-between items-start mb-3">
-                    <View className="flex-1 pr-2">
-                      <Text className={`font-bold text-base uppercase tracking-wide ${themeTextHeader}`} style={{ fontFamily: systemFont }}>{workout.name}</Text>
-                      <View className="flex-row items-center gap-1.5 mt-2">
-                        <Calendar size={12} color="#71717a" />
-                        <Text className="text-zinc-500 text-xs font-semibold" style={{ fontFamily: systemFont }}>{date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} | {durationMins} mins</Text>
-                      </View>
-                    </View>
-                    <View className={`px-4 py-1.5 border ${themeBorder} ${isDark ? 'bg-zinc-900/60' : 'bg-zinc-100'}`} style={{ borderRadius: 100 }}>
-                      <Text className="text-xs font-bold text-[#ea580c]" style={{ fontFamily: systemFont }}>Volume: {formatWeight(getWorkoutVolume(workout))}</Text>
-                    </View>
-                  </View>
-                  <View className={`border-t pt-4 mt-3 ${themeDivider}`}>
-                    {workout.workout_exercises?.slice(0, 3).map((we: any, idx: number) => (
-                      <View key={we.id || idx} className="flex-row items-center gap-2 mt-3">
-                        <Dumbbell size={12} color="#ea580c" strokeWidth={2} />
-                        <Text className={`text-xs font-bold uppercase tracking-wider ${themeTextSub}`} style={{ fontFamily: systemFont }}>
-                          {we.exercises?.name || 'Exercise'} <Text className="text-[#ea580c]">({we.workout_sets?.filter((s: any) => s.is_completed).length} sets)</Text>
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              );
-            })
-          )}
-          {loadingMore && (
-            <View className="py-6 justify-center items-center">
-              <ActivityIndicator size="small" color="#ea580c" />
-            </View>
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        <Text variant="label" color="textSecondary" style={{ marginBottom: t.spacing.md }}>
+          Workout history
+        </Text>
+
+        {loadingHistory ? (
+          <View style={{ paddingVertical: t.spacing.xxxl, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={t.color.accent} />
+          </View>
+        ) : history.length === 0 ? (
+          <Card style={{ alignItems: 'center', gap: t.spacing.md, paddingVertical: t.spacing.xxl }}>
+            <AlertCircle size={24} color={t.color.textTertiary} />
+            <Text variant="body" color="textSecondary">
+              No workouts logged yet
+            </Text>
+            <Button label="Start your first workout" onPress={() => startWorkout('Blank Session')} />
+          </Card>
+        ) : (
+          history.map((workout) => (
+            <HistoryCard key={workout.id} workout={workout} formatWeight={formatWeight} />
+          ))
+        )}
+
+        {loadingMore ? (
+          <View style={{ paddingVertical: t.spacing.xl, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={t.color.accent} />
+          </View>
+        ) : null}
+
+        {/* Clears the floating "workout in progress" bar, which is absolutely positioned by
+            ActiveWorkoutLogger and would otherwise cover the last history card. A spacer, not
+            extra paddingBottom — that would override Screen's tab-bar inset rather than add
+            to it, which is how this overlapped in the first place. */}
+        {activeWorkout ? <View style={{ height: IN_PROGRESS_BAR_SPACE }} /> : null}
+      </Screen>
+    </View>
   );
 }

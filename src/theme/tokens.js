@@ -30,6 +30,11 @@ const type = {
   callout:    { fontSize: 15, fontWeight: '400', lineHeight: 21, letterSpacing: 0 },
   label:      { fontSize: 14, fontWeight: '500', lineHeight: 19, letterSpacing: 0 },
   caption:    { fontSize: 13, fontWeight: '500', lineHeight: 17, letterSpacing: 0.07 },
+
+  // Documented exception to the 13px floor. Tab-bar labels are platform chrome, not content, and
+  // iOS HIG specifies 10pt there; at 13px "Analytics" truncates to "Analyti...". Use only for the
+  // tab bar.
+  tabLabel:   { fontSize: 11, fontWeight: '500', lineHeight: 13, letterSpacing: 0 },
 };
 
 const fontFamily = {
