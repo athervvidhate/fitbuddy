@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
 import Svg, { Line, Rect, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
+import { glow } from '../theme';
 
 const { width, height } = Dimensions.get('window');
 const GRID_SIZE = 55;
@@ -15,24 +16,26 @@ const GRID_SIZE = 55;
  * the component just picks one. Rendering allocates nothing, and React skips the subtree
  * entirely when the returned element is referentially identical to last time.
  *
- * Appearance is unchanged. Whether this layer survives at all is decided by design-tokens
- * ticket 05.
+ * Ticket 05 kept the layer and re-coloured it: the amber/orange gradients fought the violet
+ * accent instead of supporting it. Every value below now comes from the `glow` tokens, so this
+ * file holds no colors of its own.
  */
 function buildLayer(isDark: boolean) {
-  // Ultra-faint white in dark mode, ultra-faint black in light mode
-  const gridStroke = isDark ? 'rgba(255, 255, 255, 0.012)' : 'rgba(0, 0, 0, 0.010)';
-  const canvasBg = isDark ? '#08080a' : '#fcfcfa';
+  const g = glow[isDark ? 'dark' : 'light'];
 
-  // Glow colors: saturated in dark mode, pastel in light mode
-  const amberColor = isDark ? '#d97706' : '#fed7aa';
-  const orangeColor = isDark ? '#ea580c' : '#ffedd5';
-  const depthColor = isDark ? '#7c2d12' : '#fed7aa';
+  const gridStroke = g.grid;
+  const canvasBg = g.canvas;
 
-  const glow1Opacity = isDark ? '0.15' : '0.45';
-  const glow1MidOpacity = isDark ? '0.05' : '0.15';
-  const glow2Opacity = isDark ? '0.12' : '0.40';
-  const glow2MidOpacity = isDark ? '0.04' : '0.12';
-  const glow3Opacity = isDark ? '0.06' : '0.20';
+  // Saturated violet in dark mode, pastel violet in light mode.
+  const primaryColor = g.primary;
+  const secondaryColor = g.secondary;
+  const depthColor = g.depth;
+
+  const glow1Opacity = String(g.primaryOpacity);
+  const glow1MidOpacity = String(g.primaryMid);
+  const glow2Opacity = String(g.secondaryOpacity);
+  const glow2MidOpacity = String(g.secondaryMid);
+  const glow3Opacity = String(g.depthOpacity);
 
   // Scoped per variant so the two trees can never collide on gradient ids.
   const prefix = isDark ? 'dark' : 'light';
@@ -57,7 +60,7 @@ function buildLayer(isDark: boolean) {
       {/* SVG Radial Glows & Grid System */}
       <Svg height="100%" width="100%" style={StyleSheet.absoluteFill}>
         <Defs>
-          {/* Top-Right Amber Glow */}
+          {/* Top-right primary glow */}
           <RadialGradient
             id={`${prefix}TopRightGlow`}
             cx="80%"
@@ -68,12 +71,12 @@ function buildLayer(isDark: boolean) {
             fy="10%"
             gradientUnits="userSpaceOnUse"
           >
-            <Stop offset="0%" stopColor={amberColor} stopOpacity={glow1Opacity} />
-            <Stop offset="50%" stopColor={amberColor} stopOpacity={glow1MidOpacity} />
+            <Stop offset="0%" stopColor={primaryColor} stopOpacity={glow1Opacity} />
+            <Stop offset="50%" stopColor={primaryColor} stopOpacity={glow1MidOpacity} />
             <Stop offset="100%" stopColor={canvasBg} stopOpacity="0" />
           </RadialGradient>
 
-          {/* Bottom-Left Volcanic Orange Glow */}
+          {/* Bottom-left secondary glow */}
           <RadialGradient
             id={`${prefix}BottomLeftGlow`}
             cx="20%"
@@ -84,8 +87,8 @@ function buildLayer(isDark: boolean) {
             fy="90%"
             gradientUnits="userSpaceOnUse"
           >
-            <Stop offset="0%" stopColor={orangeColor} stopOpacity={glow2Opacity} />
-            <Stop offset="60%" stopColor={orangeColor} stopOpacity={glow2MidOpacity} />
+            <Stop offset="0%" stopColor={secondaryColor} stopOpacity={glow2Opacity} />
+            <Stop offset="60%" stopColor={secondaryColor} stopOpacity={glow2MidOpacity} />
             <Stop offset="100%" stopColor={canvasBg} stopOpacity="0" />
           </RadialGradient>
 

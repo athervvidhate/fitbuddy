@@ -39,7 +39,18 @@ export const fontFamily = tokens.fontFamily as Record<
 export const spacing = tokens.spacing as Record<SpacingToken, number>;
 export const radius = tokens.radius as Record<RadiusToken, number>;
 export const color = tokens.color as Record<ThemeName, Record<ColorToken, string>>;
-export const glow = tokens.glow as Record<ThemeName, Record<string, string | number>>;
+/** Colors in the decorative background layer. */
+export type GlowColorToken = 'canvas' | 'primary' | 'secondary' | 'depth' | 'grid';
+/** Gradient stop opacities in the same layer. */
+export type GlowOpacityToken =
+  | 'primaryOpacity' | 'primaryMid'
+  | 'secondaryOpacity' | 'secondaryMid'
+  | 'depthOpacity';
+
+export const glow = tokens.glow as Record<
+  ThemeName,
+  Record<GlowColorToken, string> & Record<GlowOpacityToken, number>
+>;
 export const elevation = tokens.elevation as Record<
   ThemeName,
   Record<'raised' | 'overlay', Record<string, any>>
