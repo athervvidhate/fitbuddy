@@ -1,40 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
   Modal,
-  SafeAreaView,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
 import { useUnits } from '../../context/UnitContext';
 import { useWorkout, ExerciseLog, SetLog } from '../../context/WorkoutContext';
 import { supabase } from '../../lib/supabase';
 import exercisesData from '../../data/exercises.json';
 import { BackgroundGlows } from '../../components/background-glows';
-import { 
-  FolderPlus, 
-  Plus, 
-  Edit, 
+import { Button, Card, Chip, Input, NumericInput, Screen, Sheet, Text } from '../../components/ui';
+import { useThemeTokens } from '../../theme/useThemeTokens';
+import {
+  FolderPlus,
+  Plus,
+  Edit,
   Trash2,
   Dumbbell,
-  Folder, 
-  X, 
-  ChevronRight,
-  PlusCircle,
+  X,
   AlertCircle,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
 } from 'lucide-react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+
+const categories = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Cardio'];
+const customExerciseTypes = [
+  'Barbell', 'Dumbbell', 'Machine', 'Cable', 'Kettlebell', 'Band',
+  'Weighted Bodyweight', 'Assisted Bodyweight', 'Reps', 'Duration', 'Distance', 'Other',
+];
 
 type FolderData = {
   id: string;
@@ -60,19 +59,41 @@ type RoutineData = {
 
 export default function RoutinesScreen() {
   const { user } = useAuth();
-  const { colors, isDark } = useTheme();
   const { startWorkout } = useWorkout();
   const { parseWeightInput, displayWeightValue, weightUnit } = useUnits();
+  const t = useThemeTokens();
 
-  // Premium adaptive theme tokens
-  const themeCard = isDark ? 'bg-zinc-950/60 border-white/5' : 'bg-white border-zinc-200/80';
-  const themeTextHeader = isDark ? 'text-[#e2e2e5]' : 'text-zinc-900';
-  const themeTextSub = isDark ? 'text-zinc-400' : 'text-zinc-600';
-  const themeTextMuted = isDark ? 'text-zinc-500' : 'text-zinc-400';
-  const themeInputText = isDark ? 'text-[#e2e2e5]' : 'text-zinc-900';
-  const themeHeaderBg = isDark ? 'bg-zinc-950/60 border-white/5' : 'bg-zinc-100/90 border-zinc-200';
-  const themeBorder = isDark ? 'border-white/5' : 'border-zinc-200/80';
-  const themeDivider = isDark ? 'border-white/5' : 'border-zinc-200/60';
+  // Shared small-control styles, so the icon buttons and dialog chrome stay consistent.
+  const iconButton = {
+    padding: 6,
+    borderWidth: 1,
+    borderRadius: t.radius.sm,
+    borderColor: t.color.border,
+    backgroundColor: t.color.surfaceRaised,
+  };
+  const closeButton = {
+    padding: 8,
+    borderRadius: t.radius.pill,
+    borderWidth: 1,
+    borderColor: t.color.border,
+    backgroundColor: t.color.surfaceRaised,
+  };
+  const sheetHeader = {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: t.spacing.lg,
+    paddingBottom: t.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: t.color.borderSoft,
+  };
+  const sheetFooter = {
+    paddingHorizontal: t.spacing.lg,
+    paddingTop: t.spacing.md,
+    paddingBottom: t.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: t.color.borderSoft,
+  };
 
   // Data states
   const [routines, setRoutines] = useState<RoutineData[]>([]);
@@ -107,18 +128,12 @@ export default function RoutinesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Interactive focus states for inputs
-  const [focusedField, setFocusedField] = useState<string | null>(null);
-
-  const categories = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Cardio'];
-  const systemFont = Platform.OS === 'ios' ? 'System' : 'sans-serif';
-
   // Fetch Folders & Routines
   const fetchData = async () => {
     if (!user) return;
     try {
       setLoading(true);
-      
+
       // 1. Fetch folders
       const { data: foldersData, error: foldersError } = await supabase
         .from('folders')
@@ -147,9 +162,9 @@ export default function RoutinesScreen() {
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-      
+
       if (routinesError) throw routinesError;
-      
+
       // Sort routine exercises and sets locally
       const formattedRoutines = (routinesData || []).map((r: any) => {
         const sortedExercises = [...(r.routine_exercises || [])].sort(
@@ -250,6 +265,7 @@ export default function RoutinesScreen() {
       ]
     );
   };
+
   const handleStartRoutine = (routine: RoutineData) => {
     const initialExercises: ExerciseLog[] = routine.routine_exercises.map((re) => {
       const sets: SetLog[] = re.routine_sets.map((rs) => ({
@@ -280,7 +296,7 @@ export default function RoutinesScreen() {
       setRoutineName(routine.name);
       setRoutineDesc(routine.description || '');
       setRoutineFolderId(routine.folder_id);
-      
+
       const exercises = routine.routine_exercises.map((re) => ({
         id: re.exercises.id,
         name: re.exercises.name,
@@ -486,9 +502,9 @@ export default function RoutinesScreen() {
         name: customExName.trim(),
         category: customExMuscle,
         instructions: [`type:${customExType.toLowerCase()}`],
-        user_id: user.id
+        user_id: user.id,
       };
-      
+
       const { error } = await supabase
         .from('exercises')
         .insert(newEx);
@@ -496,11 +512,11 @@ export default function RoutinesScreen() {
       if (error) throw error;
 
       setCustomExercises((prev) => [...prev, newEx]);
-      
+
       // Automatically add it to routine builder exercises and close creator modal
       const routineEx = {
         ...newEx,
-        sets: [{ weight: '', reps: '', notes: '' }]
+        sets: [{ weight: '', reps: '', notes: '' }],
       };
       setBuilderExercises((prev) => [...prev, routineEx]);
       setShowCustomExModal(false);
@@ -518,1037 +534,691 @@ export default function RoutinesScreen() {
     return r.folder_id === activeFolderId;
   });
 
-  const filteredExercises = exercisesData.filter((ex) => {
-    const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ex.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || ex.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Merge + filter the exercise catalogue once per input change rather than inside an inline IIFE
+  // in the picker's ScrollView, which re-ran on every keystroke and every unrelated re-render.
+  const mergedExercises = useMemo(() => {
+    const merged: any[] = [...exercisesData];
+    customExercises.forEach((ce) => {
+      if (!merged.some((me) => me.id === ce.id)) {
+        merged.push(ce);
+      }
+    });
+    return merged;
+  }, [customExercises]);
+
+  const filteredExercises = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return mergedExercises.filter((ex) => {
+      const matchesSearch =
+        ex.name.toLowerCase().includes(query) || ex.category.toLowerCase().includes(query);
+      const matchesCategory = selectedCategory === 'All' || ex.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [mergedExercises, searchQuery, selectedCategory]);
+
+  const openExercisePicker = () => {
+    setSearchQuery('');
+    setSelectedCategory('All');
+    setShowExerciseModal(true);
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.dark }}>
+    <View style={{ flex: 1, backgroundColor: t.color.bg }}>
       <BackgroundGlows />
-      
-      <ScrollView
-        style={{ flex: 1, backgroundColor: 'transparent' }} 
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 140 }}
-      >
+      <Screen>
         {/* Header */}
-        <View className={`flex-row justify-between items-center mb-6 pb-4 border-b ${themeDivider}`}>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            marginBottom: t.spacing.xl,
+          }}
+        >
           <View>
-            <Text 
-              className="text-zinc-500 text-[10px] uppercase tracking-wider font-bold"
-              style={{ fontFamily: systemFont }}
-            >
+            <Text variant="callout" color="textSecondary">
               Library
             </Text>
-            <Text 
-              className={`text-lg font-bold mt-1 ${themeTextHeader}`}
-              style={{ fontFamily: systemFont }}
-            >
+            <Text variant="title1" style={{ marginTop: 2 }}>
               Routines
             </Text>
           </View>
-          <View className="flex-row items-center gap-2">
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
             <TouchableOpacity
               onPress={() => {
                 setNewFolderName('');
                 setShowFolderModal(true);
               }}
-              className={`border px-3 py-2 ${isDark ? 'bg-zinc-900/80 border-white/5' : 'bg-white border-zinc-200'}`}
-              style={{ borderRadius: 12 }}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: t.radius.md,
+                borderWidth: 1,
+                borderColor: t.color.border,
+                backgroundColor: t.color.surface,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <FolderPlus size={15} color="#ea580c" strokeWidth={2} />
+              <FolderPlus size={18} color={t.color.accent} strokeWidth={2} />
             </TouchableOpacity>
-            <TouchableOpacity
+            <Button
+              label="New"
+              leading={<Plus color={t.color.onAccent} size={16} strokeWidth={2.5} />}
               onPress={() => openBuilder()}
-              className="bg-[#ea580c] px-4 py-2 flex-row items-center gap-1.5"
-              style={{ borderRadius: 12 }}
-            >
-              <Plus color="#ffffff" size={14} strokeWidth={2.5} />
-              <Text 
-                className="text-white font-bold text-xs uppercase tracking-wider"
-                style={{ fontFamily: systemFont }}
-              >
-                New Routine
-              </Text>
-            </TouchableOpacity>
+            />
           </View>
         </View>
 
-        {/* Folders Horizontal Scroll */}
-        <View className="mb-6">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <TouchableOpacity
+        {/* Folder filter chips */}
+        <View style={{ marginBottom: t.spacing.xl }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: t.spacing.sm }}
+          >
+            <Chip
+              label="All routines"
+              selected={activeFolderId === null}
               onPress={() => setActiveFolderId(null)}
-              className="px-4 py-2 mr-2 border"
-              style={{
-                borderRadius: 100,
-                backgroundColor: activeFolderId === null ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff'),
-                borderColor: activeFolderId === null ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#e4e4e7'),
-              }}
-            >
-              <Text
-                className="text-[10px] font-bold uppercase tracking-wider"
-                style={{
-                  fontFamily: systemFont,
-                  color: activeFolderId === null ? '#ffffff' : (isDark ? '#e2e2e5' : '#18181b'),
-                }}
-              >
-                All Routines
-              </Text>
-            </TouchableOpacity>
+            />
             {folders.map((f) => (
-              <TouchableOpacity
+              <Chip
                 key={f.id}
+                label={f.name}
+                selected={activeFolderId === f.id}
                 onPress={() => setActiveFolderId(f.id)}
-                className="px-4 py-2 mr-2 border flex-row items-center gap-1.5"
-                style={{
-                  borderRadius: 100,
-                  backgroundColor: activeFolderId === f.id ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff'),
-                  borderColor: activeFolderId === f.id ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#e4e4e7'),
-                }}
-              >
-                <Folder size={10} color={activeFolderId === f.id ? '#ffffff' : '#ea580c'} />
-                <Text
-                  className="text-[10px] font-bold uppercase tracking-wider"
-                  style={{
-                    fontFamily: systemFont,
-                    color: activeFolderId === f.id ? '#ffffff' : (isDark ? '#e2e2e5' : '#18181b'),
-                  }}
-                >
-                  {f.name}
-                </Text>
-              </TouchableOpacity>
+              />
             ))}
           </ScrollView>
         </View>
 
-        {/* Routines List */}
-        <View>
-          {loading ? (
-            <View className="py-12 justify-center items-center">
-              <ActivityIndicator size="small" color="#ea580c" />
-            </View>
-          ) : filteredRoutines.length === 0 ? (
-            <View 
-              className={`border p-8 items-center justify-center ${themeCard}`}
-              style={{ borderRadius: 24 }}
-            >
-              <AlertCircle size={24} color="#5c5c61" strokeWidth={1.5} className="mb-2.5" />
-              <Text 
-                className={`font-bold text-[11px] mb-1.5 ${themeTextSub}`}
-                style={{ fontFamily: systemFont }}
-              >
-                No routines found
-              </Text>
-              <Text 
-                className="text-zinc-500 text-[9px] text-center max-w-[210px] leading-relaxed font-semibold"
-                style={{ fontFamily: systemFont }}
-              >
-                Create a routine to save a template for future workouts.
-              </Text>
-            </View>
-          ) : (
-            filteredRoutines.map((routine) => (
+        {/* Routines list */}
+        {loading ? (
+          <View style={{ paddingVertical: t.spacing.xxxl, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color={t.color.accent} />
+          </View>
+        ) : filteredRoutines.length === 0 ? (
+          <Card style={{ alignItems: 'center', gap: t.spacing.sm, paddingVertical: t.spacing.xxl }}>
+            <AlertCircle size={24} color={t.color.textTertiary} strokeWidth={1.5} />
+            <Text variant="body" color="textSecondary">
+              No routines found
+            </Text>
+            <Text variant="caption" color="textTertiary" style={{ textAlign: 'center', maxWidth: 240 }}>
+              Create a routine to save a template for future workouts.
+            </Text>
+          </Card>
+        ) : (
+          filteredRoutines.map((routine) => (
+            <Card key={routine.id} elevation="raised" style={{ marginBottom: t.spacing.md }}>
               <View
-                key={routine.id}
-                className={`border p-5 mb-4 ${themeCard}`}
                 style={{
-                  borderRadius: 24,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: isDark ? 0.35 : 0.05,
-                  shadowRadius: 16,
-                  elevation: 5,
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  gap: t.spacing.md,
                 }}
               >
-                <View className="flex-row justify-between items-start mb-3">
-                  <View className="flex-1 pr-2">
-                    <Text 
-                      className={`font-bold text-base uppercase tracking-wide ${themeTextHeader}`}
-                      style={{ fontFamily: systemFont }}
-                    >
-                      {routine.name}
+                <View style={{ flex: 1 }}>
+                  <Text variant="heading" numberOfLines={1}>
+                    {routine.name}
+                  </Text>
+                  {routine.description ? (
+                    <Text variant="callout" color="textSecondary" style={{ marginTop: t.spacing.xs }}>
+                      {routine.description}
                     </Text>
-                    {routine.description ? (
-                      <Text 
-                        className={`text-xs mt-1.5 leading-relaxed ${themeTextSub}`}
-                        style={{ fontFamily: systemFont }}
-                      >
-                        {routine.description}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View className="flex-row items-center gap-2">
-                    <TouchableOpacity
-                      onPress={() => handleStartRoutine(routine)}
-                      className="bg-[#ea580c] px-6 py-3 flex-row items-center gap-2"
-                      style={{ borderRadius: 14 }}
-                    >
-                      <Dumbbell color="#ffffff" size={15} strokeWidth={2.5} />
-                      <Text 
-                        className="text-white font-bold text-sm uppercase tracking-wider"
-                        style={{ fontFamily: systemFont }}
-                      >
-                        Start
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                  ) : null}
                 </View>
+                <Button
+                  label="Start"
+                  size="sm"
+                  leading={<Dumbbell color={t.color.onAccent} size={15} strokeWidth={2.5} />}
+                  onPress={() => handleStartRoutine(routine)}
+                />
+              </View>
 
-                {/* Exercises Preview inside Routine Card */}
-                <View className={`border-t pt-3.5 mt-4 ${themeDivider}`}>
-                  {routine.routine_exercises?.map((re, idx) => (
-                    <View key={re.id || idx} className="flex-row items-center gap-2 mt-3">
-                      <Dumbbell size={12} color="#ea580c" />
-                      <Text 
-                        className={`text-xs font-bold uppercase tracking-wider ${themeTextSub}`}
-                        style={{ fontFamily: systemFont }}
-                      >
-                        {re.exercises?.name || 'Exercise'} <Text className="text-[#ea580c]">({re.routine_sets?.length || 0} sets)</Text>
+              {routine.routine_exercises?.length ? (
+                <View
+                  style={{
+                    marginTop: t.spacing.md,
+                    paddingTop: t.spacing.md,
+                    borderTopWidth: 1,
+                    borderTopColor: t.color.borderSoft,
+                    gap: t.spacing.sm,
+                  }}
+                >
+                  {routine.routine_exercises.map((re, idx) => (
+                    <View
+                      key={re.id || idx}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}
+                    >
+                      <Dumbbell size={14} color={t.color.accent} strokeWidth={2} />
+                      <Text variant="callout" color="textSecondary" style={{ flex: 1 }} numberOfLines={1}>
+                        {re.exercises?.name || 'Exercise'}
+                      </Text>
+                      <Text variant="callout" color="textTertiary" tabular>
+                        {re.routine_sets?.length || 0} sets
                       </Text>
                     </View>
                   ))}
                 </View>
+              ) : null}
 
-                {/* Card Actions (Edit, Delete) */}
-                <View className="flex-row justify-end items-center gap-2 mt-4 pt-3 border-t border-white/5">
-                  <TouchableOpacity
-                    onPress={() => openBuilder(routine)}
-                    className={`p-2 border ${isDark ? 'bg-zinc-900/80 border-white/5' : 'bg-zinc-100 border-zinc-200'}`}
-                    style={{ borderRadius: 10 }}
-                  >
-                    <Edit size={13} color="#ea580c" strokeWidth={2} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDeleteRoutine(routine.id)}
-                    className={`p-2 border ${isDark ? 'bg-zinc-900/80 border-white/5' : 'bg-zinc-100 border-zinc-200'}`}
-                    style={{ borderRadius: 10 }}
-                  >
-                    <Trash2 size={13} color="#ff453a" strokeWidth={2} />
-                  </TouchableOpacity>
-                </View>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'flex-end',
+                  gap: t.spacing.sm,
+                  marginTop: t.spacing.md,
+                  paddingTop: t.spacing.md,
+                  borderTopWidth: 1,
+                  borderTopColor: t.color.borderSoft,
+                }}
+              >
+                <TouchableOpacity onPress={() => openBuilder(routine)} hitSlop={6} style={iconButton}>
+                  <Edit size={16} color={t.color.accent} strokeWidth={2} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDeleteRoutine(routine.id)} hitSlop={6} style={iconButton}>
+                  <Trash2 size={16} color={t.color.danger} strokeWidth={2} />
+                </TouchableOpacity>
               </View>
-            ))
-          )}
-        </View>
-      </ScrollView>
+            </Card>
+          ))
+        )}
+      </Screen>
 
       {/* CREATE FOLDER DIALOG */}
-      <Modal visible={showFolderModal} transparent animationType="fade">
-        <View 
-          className="flex-1 justify-center items-center px-6"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.82)' }}
+      <Modal visible={showFolderModal} transparent animationType="fade" onRequestClose={() => setShowFolderModal(false)}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: t.spacing.xl,
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          }}
         >
-          <View 
-            className={`border p-6 w-full ${isDark ? 'bg-zinc-950/90 border-white/10' : 'bg-white border-zinc-200'}`}
-            style={{ borderRadius: 24, elevation: 8 }}
-          >
-            <View className="flex-row justify-between items-center mb-5">
-              <Text 
-                className={`text-sm font-bold uppercase tracking-wider ${themeTextHeader}`}
-                style={{ fontFamily: systemFont }}
-              >
-                New Folder
-              </Text>
-              <TouchableOpacity 
-                onPress={() => setShowFolderModal(false)} 
-                className={`p-1 border ${isDark ? 'border-white/5 bg-zinc-900' : 'border-zinc-200 bg-zinc-100'}`}
-                style={{ borderRadius: 100 }}
-              >
-                <X size={12} color="#71717a" strokeWidth={2} />
+          <Card elevation="raised" radius="xxl" padding="xl" style={{ width: '100%' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: t.spacing.lg,
+              }}
+            >
+              <Text variant="heading">New folder</Text>
+              <TouchableOpacity onPress={() => setShowFolderModal(false)} hitSlop={8} style={closeButton}>
+                <X size={14} color={t.color.textSecondary} strokeWidth={2} />
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              className={`border px-4 py-3 text-sm h-12 mb-5 ${isDark ? 'bg-zinc-900/50 text-[#e2e2e5]' : 'bg-zinc-50 text-zinc-900'}`}
-              style={{
-                borderRadius: 14,
-                borderColor: focusedField === 'folder' ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1'),
-              }}
-              placeholder="Enter folder name..."
-              placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
+            <Input
+              label="Folder name"
+              placeholder="e.g. Push / Pull / Legs"
               value={newFolderName}
               onChangeText={setNewFolderName}
               autoCapitalize="words"
               autoFocus
-              onFocus={() => setFocusedField('folder')}
-              onBlur={() => setFocusedField(null)}
+              containerStyle={{ marginBottom: t.spacing.lg }}
             />
 
-            <TouchableOpacity
-              onPress={handleCreateFolder}
-              disabled={creatingFolder}
-              className="w-full py-3.5 bg-[#ea580c] items-center justify-center"
-              style={{ borderRadius: 14 }}
-            >
-              {creatingFolder ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text 
-                  className="text-white font-bold text-xs uppercase tracking-wider"
-                  style={{ fontFamily: systemFont }}
-                >
-                  Create Folder
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
+            <Button label="Create folder" fullWidth loading={creatingFolder} onPress={handleCreateFolder} />
+          </Card>
         </View>
       </Modal>
 
-      {/* FULL SCREEN ROUTINE BUILDER MODAL */}
-      <Modal visible={showBuilder} animationType="slide" presentationStyle="fullScreen">
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.dark }}>
-          <BackgroundGlows />
+      {/* FULLSCREEN ROUTINE BUILDER — Sheet carries the delayed-unmount fix (ticket 02). */}
+      <Sheet visible={showBuilder} onRequestClose={() => setShowBuilder(false)}>
+        <BackgroundGlows />
 
-          {/* Builder Header */}
-          <View className={`flex-row justify-between items-center px-4 py-4 border-b ${themeBorder} ${themeHeaderBg}`}>
-            <View>
-              <Text 
-                className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold"
-                style={{ fontFamily: systemFont }}
-              >
-                Routine Builder
-              </Text>
-              <Text 
-                className={`text-sm font-bold mt-1 uppercase tracking-wide ${themeTextHeader}`}
-                style={{ fontFamily: systemFont }}
-              >
-                {builderRoutineId ? 'Edit Routine' : 'Create Routine'}
-              </Text>
-            </View>
-            <TouchableOpacity 
-              onPress={() => setShowBuilder(false)} 
-              style={{ 
-                padding: 6,
-                borderWidth: 1,
-                borderRadius: 100,
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7',
-                backgroundColor: isDark ? 'rgba(24, 24, 27, 0.8)' : '#f4f4f5'
-              }}
-            >
-              <X size={14} color="#71717a" strokeWidth={2} />
-            </TouchableOpacity>
+        {/* Builder header */}
+        <View style={sheetHeader}>
+          <View style={{ flex: 1, paddingRight: t.spacing.md }}>
+            <Text variant="caption" color="textTertiary">
+              Routine builder
+            </Text>
+            <Text variant="heading" style={{ marginTop: 2 }}>
+              {builderRoutineId ? 'Edit routine' : 'Create routine'}
+            </Text>
           </View>
+          <TouchableOpacity onPress={() => setShowBuilder(false)} hitSlop={8} style={closeButton}>
+            <X size={16} color={t.color.textSecondary} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
 
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={{ flex: 1, backgroundColor: 'transparent' }}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+        >
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              paddingHorizontal: t.spacing.lg,
+              paddingTop: t.spacing.lg,
+              paddingBottom: t.spacing.xxl,
+            }}
+            keyboardShouldPersistTaps="handled"
           >
-            <ScrollView 
-              style={{ flex: 1, backgroundColor: 'transparent' }}
-              contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 }}
+            <Input
+              label="Routine name"
+              placeholder="Enter routine name…"
+              value={routineName}
+              onChangeText={setRoutineName}
+              containerStyle={{ marginBottom: t.spacing.lg }}
+            />
+
+            <Input
+              label="Description"
+              placeholder="Enter routine description…"
+              value={routineDesc}
+              onChangeText={setRoutineDesc}
+              multiline
+              containerStyle={{ marginBottom: t.spacing.lg }}
+              style={{ height: 72, paddingTop: t.spacing.md, textAlignVertical: 'top' }}
+            />
+
+            <Text variant="label" color="textSecondary" style={{ marginBottom: t.spacing.sm }}>
+              Assign to folder
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: t.spacing.sm }}
+              style={{ marginBottom: t.spacing.xl }}
             >
-              <Text 
-                className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2"
-                style={{ fontFamily: systemFont }}
-              >
-                Routine Name
-              </Text>
-              <View 
-                style={{
-                  borderWidth: 1,
-                  padding: 2,
-                  marginBottom: 16,
-                  backgroundColor: isDark ? 'rgba(24, 24, 27, 0.4)' : '#f4f4f5',
-                  borderRadius: 14,
-                  borderColor: focusedField === 'name' ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1'),
-                }}
-              >
-                <TextInput
-                  className={`px-4 py-3.5 text-sm h-12 ${themeInputText}`}
-                  placeholder="Enter routine name..."
-                  placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
-                  value={routineName}
-                  onChangeText={setRoutineName}
-                  onFocus={() => setFocusedField('name')}
-                  onBlur={() => setFocusedField(null)}
+              <Chip
+                label="No folder"
+                selected={routineFolderId === null}
+                onPress={() => setRoutineFolderId(null)}
+              />
+              {folders.map((f) => (
+                <Chip
+                  key={f.id}
+                  label={f.name}
+                  selected={routineFolderId === f.id}
+                  onPress={() => setRoutineFolderId(f.id)}
                 />
-              </View>
+              ))}
+            </ScrollView>
 
-              <Text 
-                className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2"
-                style={{ fontFamily: systemFont }}
-              >
-                Description
-              </Text>
-              <View 
-                style={{
-                  borderWidth: 1,
-                  padding: 2,
-                  marginBottom: 16,
-                  backgroundColor: isDark ? 'rgba(24, 24, 27, 0.4)' : '#f4f4f5',
-                  borderRadius: 14,
-                  borderColor: focusedField === 'desc' ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1'),
-                }}
-              >
-                <TextInput
-                  className={`px-4 py-3 text-xs h-16 leading-relaxed ${themeInputText}`}
-                  placeholder="Enter routine description..."
-                  placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
-                  value={routineDesc}
-                  onChangeText={setRoutineDesc}
-                  multiline
-                  onFocus={() => setFocusedField('desc')}
-                  onBlur={() => setFocusedField(null)}
-                />
-              </View>
+            <Text variant="label" color="textSecondary" style={{ marginBottom: t.spacing.md }}>
+              Exercises
+            </Text>
 
-              {/* Folder/Split Selector */}
-              <Text 
-                className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2"
-                style={{ fontFamily: systemFont }}
-              >
-                Assign to Split Folder
-              </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
-                <TouchableOpacity
-                  onPress={() => setRoutineFolderId(null)}
-                  style={{ 
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    marginRight: 8,
-                    borderWidth: 1,
-                    borderRadius: 100,
-                    backgroundColor: routineFolderId === null ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff'),
-                    borderColor: routineFolderId === null ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1')
+            {builderExercises.map((ex, exIdx) => (
+              <Card key={ex.id + exIdx} style={{ marginBottom: t.spacing.lg }}>
+                {/* Exercise header */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: t.spacing.md,
+                    paddingBottom: t.spacing.md,
+                    borderBottomWidth: 1,
+                    borderBottomColor: t.color.borderSoft,
                   }}
                 >
-                  <Text 
-                    className="text-[10px] font-bold uppercase tracking-wider"
-                    style={{ 
-                      fontFamily: systemFont,
-                      color: routineFolderId === null ? '#ffffff' : (isDark ? '#8e8e93' : '#71717a') 
-                    }}
-                  >
-                    No Folder
-                  </Text>
-                </TouchableOpacity>
-                {folders.map((f) => (
-                  <TouchableOpacity
-                    key={f.id}
-                    onPress={() => setRoutineFolderId(f.id)}
-                    style={{ 
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      marginRight: 8,
-                      borderWidth: 1,
-                      borderRadius: 100,
-                      backgroundColor: routineFolderId === f.id ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff'),
-                      borderColor: routineFolderId === f.id ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1')
-                    }}
-                  >
-                    <Text 
-                      className="text-[10px] font-bold uppercase tracking-wider"
-                      style={{ 
-                        fontFamily: systemFont,
-                        color: routineFolderId === f.id ? '#ffffff' : (isDark ? '#8e8e93' : '#71717a') 
+                  <View style={{ flex: 1, paddingRight: t.spacing.sm }}>
+                    <Text variant="bodyStrong" numberOfLines={2}>
+                      {ex.name}
+                    </Text>
+                    <Text variant="caption" color="accent" style={{ marginTop: 2 }}>
+                      {ex.category}
+                      {getExerciseTypeLabel(ex) ? ` · ${getExerciseTypeLabel(ex)}` : ''}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.xs }}>
+                    {exIdx > 0 && (
+                      <TouchableOpacity onPress={() => moveExerciseUp(exIdx)} hitSlop={6} style={iconButton}>
+                        <ChevronUp size={14} color={t.color.accent} strokeWidth={2.5} />
+                      </TouchableOpacity>
+                    )}
+                    {exIdx < builderExercises.length - 1 && (
+                      <TouchableOpacity onPress={() => moveExerciseDown(exIdx)} hitSlop={6} style={iconButton}>
+                        <ChevronDown size={14} color={t.color.accent} strokeWidth={2.5} />
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      onPress={() => removeExerciseFromBuilder(exIdx)}
+                      hitSlop={6}
+                      style={{
+                        paddingHorizontal: t.spacing.md,
+                        paddingVertical: 6,
+                        borderRadius: t.radius.pill,
+                        borderWidth: 1,
+                        borderColor: t.color.danger,
                       }}
                     >
-                      {f.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {/* Exercises list in builder */}
-              <Text 
-                className="text-[10px] font-bold text-zinc-500 mb-4 ml-1 uppercase tracking-wider"
-                style={{ fontFamily: systemFont }}
-              >
-                Exercises
-              </Text>
-
-              {builderExercises.map((ex, exIdx) => (
-                <View
-                  key={ex.id + exIdx}
-                  style={{
-                    borderWidth: 1,
-                    padding: 16,
-                    marginBottom: 20,
-                    backgroundColor: isDark ? 'rgba(9, 9, 11, 0.6)' : '#ffffff',
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(228, 228, 230, 0.8)',
-                    borderRadius: 24,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: isDark ? 0.3 : 0.05,
-                    shadowRadius: 12,
-                    elevation: 4,
-                  }}
-                >
-                  {/* Exercise Header */}
-                  <View className={`flex-row justify-between items-center mb-3 pb-2 border-b ${themeDivider}`}>
-                    <View className="flex-1 pr-2">
-                      <Text 
-                        className={`font-bold text-sm uppercase tracking-wide ${themeTextHeader}`} 
-                        style={{ fontFamily: systemFont }}
-                      >
-                        {ex.name}
-                      </Text>
-                      <Text 
-                        className="text-[#ea580c] text-[9px] uppercase font-bold tracking-widest mt-0.5"
-                        style={{ fontFamily: systemFont }}
-                      >
-                        {ex.category}{getExerciseTypeLabel(ex) ? ` • ${getExerciseTypeLabel(ex)}` : ''}
-                      </Text>
-                    </View>
-                    <View className="flex-row items-center gap-1.5 mr-2">
-                      {exIdx > 0 && (
-                        <TouchableOpacity
-                          onPress={() => moveExerciseUp(exIdx)}
-                          style={{
-                            padding: 6,
-                            borderWidth: 1,
-                            borderRadius: 8,
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7',
-                            backgroundColor: isDark ? 'rgba(24, 24, 27, 0.5)' : '#f4f4f5'
-                          }}
-                        >
-                          <ChevronUp size={12} color="#ea580c" strokeWidth={2.5} />
-                        </TouchableOpacity>
-                      )}
-                      {exIdx < builderExercises.length - 1 && (
-                        <TouchableOpacity
-                          onPress={() => moveExerciseDown(exIdx)}
-                          style={{
-                            padding: 6,
-                            borderWidth: 1,
-                            borderRadius: 8,
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7',
-                            backgroundColor: isDark ? 'rgba(24, 24, 27, 0.5)' : '#f4f4f5'
-                          }}
-                        >
-                          <ChevronDown size={12} color="#ea580c" strokeWidth={2.5} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <TouchableOpacity 
-                      onPress={() => removeExerciseFromBuilder(exIdx)} 
-                      className={`px-3 py-1.5 border ${isDark ? 'bg-red-950/10 border-red-500/20' : 'bg-red-50 border-red-200'}`}
-                      style={{ borderRadius: 100 }}
-                    >
-                      <Text 
-                        className="text-[#ff453a] font-bold text-[9px] uppercase tracking-wider"
-                        style={{ fontFamily: systemFont }}
-                      >
+                      <Text variant="caption" color="danger">
                         Remove
                       </Text>
                     </TouchableOpacity>
                   </View>
+                </View>
 
-                  {/* Exercise Note Input */}
-                  <View 
-                    className="mb-3.5 px-1"
+                {/* Exercise notes */}
+                <Input
+                  placeholder="Add exercise notes (e.g. tempo, cues)…"
+                  value={ex.notes || ''}
+                  onChangeText={(text) => updateBuilderExerciseNotes(exIdx, text)}
+                  containerStyle={{ marginBottom: t.spacing.md }}
+                  style={{ height: 44 }}
+                />
+
+                {/* Set column headers */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: t.spacing.sm,
+                    paddingHorizontal: t.spacing.md,
+                    marginBottom: t.spacing.xs,
+                  }}
+                >
+                  <Text variant="caption" color="textTertiary" style={{ width: 26 }}>
+                    Set
+                  </Text>
+                  <Text variant="caption" color="textTertiary" style={{ flex: 1, textAlign: 'center' }}>
+                    Target {weightUnit}
+                  </Text>
+                  <Text variant="caption" color="textTertiary" style={{ flex: 1, textAlign: 'center' }}>
+                    Target reps
+                  </Text>
+                  <View style={{ width: 32 }} />
+                </View>
+
+                {/* Set rows */}
+                {ex.sets.map((set: any, setIdx: number) => (
+                  <View
+                    key={setIdx}
                     style={{
-                      borderBottomWidth: 1,
-                      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#e4e4e7',
-                      paddingBottom: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: t.spacing.sm,
+                      paddingVertical: t.spacing.sm,
+                      paddingHorizontal: t.spacing.md,
+                      marginBottom: t.spacing.sm,
+                      borderRadius: t.radius.md,
+                      borderWidth: 1,
+                      backgroundColor: t.color.surfaceRaised,
+                      borderColor: t.color.border,
                     }}
                   >
-                    <TextInput
-                      placeholder="Add exercise notes (e.g., tempo, cues)..."
-                      placeholderTextColor={isDark ? '#444448' : '#a1a1aa'}
-                      className={`text-xs py-1 ${themeInputText}`}
-                      value={ex.notes || ''}
-                      onChangeText={(text) => updateBuilderExerciseNotes(exIdx, text)}
-                      style={{ fontFamily: systemFont }}
-                    />
+                    <Text variant="label" color="textTertiary" tabular style={{ width: 26 }}>
+                      {String(setIdx + 1).padStart(2, '0')}
+                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <NumericInput
+                        placeholder="0"
+                        value={set.weight}
+                        onChangeText={(text) => updateBuilderSet(exIdx, setIdx, { weight: text })}
+                        style={{ height: 44 }}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <NumericInput
+                        placeholder="10"
+                        value={set.reps}
+                        onChangeText={(text) => updateBuilderSet(exIdx, setIdx, { reps: text })}
+                        style={{ height: 44 }}
+                      />
+                    </View>
+                    <View style={{ width: 32, alignItems: 'flex-end' }}>
+                      {ex.sets.length > 1 && (
+                        <TouchableOpacity
+                          onPress={() => removeSetFromBuilderExercise(exIdx, setIdx)}
+                          hitSlop={8}
+                        >
+                          <X size={18} color={t.color.danger} strokeWidth={2} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
+                ))}
 
-                  {/* Target Sets table header */}
-                  <View className="flex-row items-center mb-2 px-1">
-                    <Text className="w-8 text-xs font-bold text-zinc-500 uppercase">Set</Text>
-                    <Text className="flex-1 text-xs font-bold text-zinc-500 text-center uppercase">Target Wt ({weightUnit})</Text>
-                    <Text className="flex-1 text-xs font-bold text-zinc-500 text-center uppercase">Target Reps</Text>
-                    <Text className="w-10"></Text>
-                  </View>
+                <Button
+                  label="Add set"
+                  size="sm"
+                  variant="ghost"
+                  leading={<Plus size={16} color={t.color.accent} />}
+                  onPress={() => addSetToBuilderExercise(exIdx)}
+                />
+              </Card>
+            ))}
 
-                  {/* Target Sets rows */}
-                  {ex.sets.map((set: any, setIdx: number) => (
-                    <View 
-                      key={setIdx} 
-                      style={{ 
-                        flexDirection: 'row',
+            {/* Add exercise trigger */}
+            <TouchableOpacity
+              onPress={openExercisePicker}
+              activeOpacity={0.8}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: t.spacing.sm,
+                paddingVertical: t.spacing.lg,
+                borderRadius: t.radius.xl,
+                borderWidth: 1,
+                borderStyle: 'dashed',
+                borderColor: t.color.accent,
+                backgroundColor: t.color.accentSoft,
+              }}
+            >
+              <Plus color={t.color.accent} size={18} strokeWidth={2.5} />
+              <Text variant="bodyStrong" color="accent">
+                Add exercise
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+          {/* Save footer */}
+          <View style={sheetFooter}>
+            <Button label="Save routine" fullWidth loading={savingRoutine} onPress={handleSaveRoutine} />
+          </View>
+        </KeyboardAvoidingView>
+
+        {/* EXERCISE SELECTOR — nested INSIDE the builder Sheet: iOS will not present a second
+            Modal from a view controller that is already presenting one. */}
+        <Sheet visible={showExerciseModal} onRequestClose={() => setShowExerciseModal(false)}>
+          <BackgroundGlows />
+
+          <View style={sheetHeader}>
+            <Text variant="heading">Add exercise</Text>
+            <TouchableOpacity onPress={() => setShowExerciseModal(false)} hitSlop={8} style={closeButton}>
+              <X size={16} color={t.color.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md }}>
+            <Input
+              placeholder="Search exercises…"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md }}>
+            <Button
+              label="Create custom exercise"
+              variant="secondary"
+              fullWidth
+              leading={<Plus size={16} color={t.color.textPrimary} />}
+              onPress={() => {
+                setCustomExName('');
+                setCustomExMuscle('Chest');
+                setCustomExType('Barbell');
+                setShowCustomExModal(true);
+              }}
+            />
+          </View>
+
+          <View style={{ paddingVertical: t.spacing.md }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}
+            >
+              {categories.map((cat) => (
+                <Chip
+                  key={cat}
+                  label={cat}
+                  selected={selectedCategory === cat}
+                  onPress={() => setSelectedCategory(cat)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.xxl }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {filteredExercises.length === 0 ? (
+              <View style={{ paddingVertical: t.spacing.xxxl, alignItems: 'center' }}>
+                <Text variant="body" color="textTertiary">
+                  No matching exercises
+                </Text>
+              </View>
+            ) : (
+              filteredExercises.map((ex) => (
+                <TouchableOpacity
+                  key={ex.id}
+                  onPress={() => {
+                    addExerciseToBuilder(ex);
+                    setShowExerciseModal(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Card
+                    style={{
+                      marginBottom: t.spacing.md,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <View style={{ flex: 1, paddingRight: t.spacing.sm }}>
+                      <Text variant="bodyStrong" numberOfLines={1}>
+                        {ex.name}
+                      </Text>
+                      <Text variant="caption" color="accent" style={{ marginTop: 2 }}>
+                        {ex.category}
+                        {getExerciseTypeLabel(ex) ? ` · ${getExerciseTypeLabel(ex)}` : ''}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: t.radius.pill,
                         alignItems: 'center',
-                        paddingVertical: 10,
-                        paddingHorizontal: 14,
-                        borderWidth: 1,
-                        marginBottom: 8,
-                        backgroundColor: isDark ? 'rgba(9, 9, 11, 0.6)' : '#ffffff',
-                        borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(228, 228, 230, 0.8)',
-                        borderRadius: 14 
+                        justifyContent: 'center',
+                        backgroundColor: t.color.accentSoft,
                       }}
                     >
-                      <Text className="w-8 text-sm font-bold text-zinc-500" style={{ fontFamily: systemFont }}>
-                        {String(setIdx + 1).padStart(2, '0')}
-                      </Text>
-                      
-                      <View className="flex-1 px-1.5">
-                        <TextInput
-                          keyboardType="numeric"
-                          className={`font-bold ${isDark ? 'text-[#e2e2e5]' : 'text-zinc-900'}`}
-                          style={{ 
-                            borderRadius: 10,
-                            height: 48,
-                            borderWidth: 1,
-                            textAlign: 'center',
-                            fontSize: 14,
-                            paddingVertical: 10,
-                            backgroundColor: isDark ? 'rgba(9, 9, 11, 0.4)' : '#ffffff',
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7'
-                          }}
-                          value={set.weight}
-                          onChangeText={(text) => updateBuilderSet(exIdx, setIdx, { weight: text })}
-                          placeholder="0"
-                          placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
-                          selectTextOnFocus
-                        />
-                      </View>
-
-                      <View className="flex-1 px-1.5">
-                        <TextInput
-                          keyboardType="number-pad"
-                          className={`font-bold ${isDark ? 'text-[#e2e2e5]' : 'text-zinc-900'}`}
-                          style={{ 
-                            borderRadius: 10,
-                            height: 48,
-                            borderWidth: 1,
-                            textAlign: 'center',
-                            fontSize: 14,
-                            paddingVertical: 10,
-                            backgroundColor: isDark ? 'rgba(9, 9, 11, 0.4)' : '#ffffff',
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7'
-                          }}
-                          value={set.reps}
-                          onChangeText={(text) => updateBuilderSet(exIdx, setIdx, { reps: text })}
-                          placeholder="10"
-                          placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
-                          selectTextOnFocus
-                        />
-                      </View>
-
-                      {/* Delete set */}
-                      <View className="w-10 items-end">
-                        {ex.sets.length > 1 && (
-                          <TouchableOpacity onPress={() => removeSetFromBuilderExercise(exIdx, setIdx)} className="p-1">
-                            <X size={16} color="#ff453a" strokeWidth={2} />
-                          </TouchableOpacity>
-                        )}
-                      </View>
+                      <Plus color={t.color.accent} size={16} />
                     </View>
-                  ))}
+                  </Card>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
 
-                  {/* Add set button inside exercise */}
-                  <TouchableOpacity
-                    onPress={() => addSetToBuilderExercise(exIdx)}
-                    style={{ 
-                      borderWidth: 1,
-                      borderColor: 'rgba(234, 88, 12, 0.3)',
-                      backgroundColor: 'rgba(234, 88, 12, 0.05)',
-                      paddingVertical: 12,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginTop: 8,
-                      flexDirection: 'row',
-                      borderRadius: 100 
-                    }}
-                  >
-                    <Text className="text-[#ea580c] text-xs font-bold uppercase tracking-wider">
-                      + Add Set Preset
-                    </Text>
+          {/* CREATE CUSTOM EXERCISE — centered dialog over the selector. */}
+          {showCustomExModal && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 60,
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingHorizontal: t.spacing.xl,
+              }}
+            >
+              <Card elevation="raised" radius="xxl" padding="xl" style={{ width: '100%' }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: t.spacing.lg,
+                  }}
+                >
+                  <Text variant="heading">New custom exercise</Text>
+                  <TouchableOpacity onPress={() => setShowCustomExModal(false)} hitSlop={8} style={closeButton}>
+                    <X size={14} color={t.color.textSecondary} strokeWidth={2} />
                   </TouchableOpacity>
                 </View>
-              ))}
 
-              {/* Add exercise trigger button */}
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery('');
-                  setSelectedCategory('All');
-                  setShowExerciseModal(true);
-                }}
-                activeOpacity={0.8}
-                style={{ 
-                  borderWidth: 1,
-                  borderStyle: 'dashed',
-                  paddingVertical: 16,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexDirection: 'row',
-                  marginBottom: 64,
-                  backgroundColor: isDark ? 'rgba(9, 9, 11, 0.6)' : '#ffffff',
-                  borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(228, 228, 230, 0.8)',
-                  borderRadius: 20 
-                }}
-              >
-                <Plus color="#ea580c" size={14} className="mr-2" strokeWidth={2.5} />
-                <Text 
-                  className="text-[#ea580c] font-bold text-xs uppercase tracking-wider"
-                  style={{ fontFamily: systemFont }}
-                >
-                  Add Exercise
+                <Input
+                  label="Exercise name"
+                  placeholder="e.g. Kettlebell Swing"
+                  value={customExName}
+                  onChangeText={setCustomExName}
+                  autoCapitalize="words"
+                  containerStyle={{ marginBottom: t.spacing.lg }}
+                />
+
+                <Text variant="label" color="textSecondary" style={{ marginBottom: t.spacing.sm }}>
+                  Target muscle group
                 </Text>
-              </TouchableOpacity>
-            </ScrollView>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: t.spacing.sm }}
+                  style={{ marginBottom: t.spacing.lg }}
+                >
+                  {categories
+                    .filter((c) => c !== 'All')
+                    .map((cat) => (
+                      <Chip
+                        key={cat}
+                        label={cat}
+                        selected={customExMuscle === cat}
+                        onPress={() => setCustomExMuscle(cat)}
+                      />
+                    ))}
+                </ScrollView>
 
-            {/* Save Button Footer */}
-            <View className={`px-4 py-4 border-t ${themeBorder} ${themeHeaderBg}`}>
-              <TouchableOpacity
-                onPress={handleSaveRoutine}
-                disabled={savingRoutine}
-                style={{ 
-                  width: '100%', 
-                  backgroundColor: '#ea580c', 
-                  paddingVertical: 14, 
-                  borderRadius: 16,
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                {savingRoutine ? (
-                  <ActivityIndicator color="#ffffff" />
-                ) : (
-                  <Text 
-                    className="text-white font-bold text-xs uppercase tracking-wider"
-                    style={{ fontFamily: systemFont }}
-                  >
-                    Save Routine
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* CUSTOM EXERCISE SELECTOR OVERLAY (BUILDER) */}
-            {showExerciseModal && (
-              <View 
-                style={{ 
-                  position: 'absolute', 
-                  top: 0, 
-                  bottom: 0, 
-                  left: 0, 
-                  right: 0, 
-                  zIndex: 50, 
-                  backgroundColor: colors.dark 
-                }}
-              >
-                <SafeAreaView style={{ flex: 1 }}>
-                  <BackgroundGlows />
-
-                  {/* Selector Header */}
-                  <View className={`flex-row justify-between items-center px-4 py-4 border-b ${themeBorder} ${themeHeaderBg}`}>
-                    <Text 
-                      className={`text-sm font-bold tracking-wide ${themeTextHeader}`}
-                      style={{ fontFamily: systemFont }}
-                    >
-                      Add Exercise
-                    </Text>
-                    <TouchableOpacity 
-                      onPress={() => setShowExerciseModal(false)} 
-                      style={{ 
-                        padding: 6,
-                        borderWidth: 1,
-                        borderRadius: 100,
-                        borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7',
-                        backgroundColor: isDark ? 'rgba(24, 24, 27, 0.8)' : '#f4f4f5'
-                      }}
-                    >
-                      <X size={14} color="#71717a" strokeWidth={2} />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Search bar */}
-                  <View className={`px-4 py-3 flex-row items-center border-b ${themeBorder} ${isDark ? 'bg-zinc-950/40' : 'bg-zinc-50'}`}>
-                    <TextInput
-                      className={`flex-1 text-sm h-8 ${themeInputText}`}
-                      style={{ fontFamily: systemFont }}
-                      placeholder="Search exercises..."
-                      placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
-                      value={searchQuery}
-                      onChangeText={setSearchQuery}
-                      autoCapitalize="none"
-                      autoCorrect={false}
+                <Text variant="label" color="textSecondary" style={{ marginBottom: t.spacing.sm }}>
+                  Exercise type
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: t.spacing.sm }}
+                  style={{ marginBottom: t.spacing.xl }}
+                >
+                  {customExerciseTypes.map((type) => (
+                    <Chip
+                      key={type}
+                      label={type}
+                      selected={customExType === type}
+                      onPress={() => setCustomExType(type)}
                     />
-                  </View>
+                  ))}
+                </ScrollView>
 
-                  {/* Create Custom Exercise Trigger Button */}
-                  <TouchableOpacity 
-                    onPress={() => {
-                      setCustomExName('');
-                      setCustomExMuscle('Chest');
-                      setCustomExType('Barbell');
-                      setShowCustomExModal(true);
-                    }}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingVertical: 12,
-                      backgroundColor: isDark ? 'rgba(234, 88, 12, 0.1)' : 'rgba(234, 88, 12, 0.05)',
-                      borderBottomWidth: 1,
-                      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7'
-                    }}
-                  >
-                    <Plus size={14} color="#ea580c" style={{ marginRight: 6 }} />
-                    <Text className="text-[#ea580c] font-bold text-xs uppercase tracking-wider">Create Custom Exercise</Text>
-                  </TouchableOpacity>
-
-                  {/* Categories Selector */}
-                  <View className={`py-3 border-b ${themeBorder} ${isDark ? 'bg-zinc-950/20' : 'bg-zinc-100/30'}`}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-                      {categories.map((cat) => (
-                        <TouchableOpacity
-                          key={cat}
-                          onPress={() => setSelectedCategory(cat)}
-                          style={{ 
-                            paddingHorizontal: 16,
-                            paddingVertical: 8,
-                            marginRight: 8,
-                            borderWidth: 1,
-                            borderRadius: 100, 
-                            backgroundColor: selectedCategory === cat ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff'),
-                            borderColor: selectedCategory === cat ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#e4e4e7')
-                          }}
-                        >
-                          <Text 
-                            className="text-[10px] font-bold uppercase tracking-wider"
-                            style={{ 
-                              fontFamily: systemFont,
-                              color: selectedCategory === cat ? '#ffffff' : '#8e8e93' 
-                            }}
-                          >
-                            {cat}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-
-                  {/* Exercises List */}
-                  <ScrollView className="flex-1 px-4 pt-3">
-                    {(() => {
-                      // Merge static JSON exercises with fetched custom exercises
-                      const merged = [...exercisesData];
-                      customExercises.forEach((ce) => {
-                        if (!merged.some((me) => me.id === ce.id)) {
-                          merged.push(ce);
-                        }
-                      });
-                      
-                      const filtered = merged.filter((ex) => {
-                        const matchesSearch = ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          ex.category.toLowerCase().includes(searchQuery.toLowerCase());
-                        const matchesCategory = selectedCategory === 'All' || ex.category === selectedCategory;
-                        return matchesSearch && matchesCategory;
-                      });
-
-                      if (filtered.length === 0) {
-                        return (
-                          <View className="py-16 items-center justify-center">
-                            <Text className="text-zinc-500 text-sm font-bold uppercase tracking-wider">No Matching Records</Text>
-                          </View>
-                        );
-                      }
-
-                      return filtered.map((ex) => (
-                        <TouchableOpacity
-                          key={ex.id}
-                          onPress={() => {
-                            addExerciseToBuilder(ex);
-                            setShowExerciseModal(false);
-                          }}
-                          activeOpacity={0.8}
-                          style={{ 
-                            borderWidth: 1,
-                            padding: 16,
-                            marginBottom: 12,
-                            flexDirection: 'row',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            backgroundColor: isDark ? 'rgba(9, 9, 11, 0.6)' : '#ffffff',
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(228, 228, 230, 0.8)',
-                            borderRadius: 18 
-                          }}
-                        >
-                          <View className="flex-1 pr-2">
-                            <Text 
-                              className={`font-semibold text-sm tracking-wide ${themeTextHeader}`}
-                              style={{ fontFamily: systemFont }}
-                            >
-                              {ex.name}
-                            </Text>
-                            <Text 
-                              className="text-[#ea580c] text-[10px] font-semibold mt-1 tracking-wide"
-                              style={{ fontFamily: systemFont }}
-                            >
-                              {ex.category}{getExerciseTypeLabel(ex) ? ` • ${getExerciseTypeLabel(ex)}` : ''}
-                            </Text>
-                          </View>
-                          <View 
-                            style={{ 
-                              width: 28,
-                              height: 28,
-                              borderWidth: 1,
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              borderRadius: 100,
-                              backgroundColor: isDark ? 'rgba(24, 24, 27, 0.8)' : '#f4f4f5',
-                              borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7'
-                            }}
-                          >
-                            <Plus color="#ea580c" size={14} strokeWidth={2.5} />
-                          </View>
-                        </TouchableOpacity>
-                      ));
-                    })()}
-                  </ScrollView>
-
-                  {/* CREATE CUSTOM EXERCISE OVERLAY */}
-                  {showCustomExModal && (
-                    <View 
-                      style={{ 
-                        position: 'absolute', 
-                        top: 0, 
-                        bottom: 0, 
-                        left: 0, 
-                        right: 0, 
-                        zIndex: 60, 
-                        backgroundColor: 'rgba(0, 0, 0, 0.82)',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        paddingHorizontal: 24
-                      }}
-                    >
-                      <View 
-                        style={{
-                          borderWidth: 1,
-                          padding: 24,
-                          width: '100%',
-                          borderRadius: 24,
-                          backgroundColor: isDark ? '#0d0d11' : '#ffffff',
-                          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e4e4e7',
-                          elevation: 8,
-                        }}
-                      >
-                        <View className="flex-row justify-between items-center mb-5">
-                          <Text className={`text-sm font-bold uppercase tracking-wider ${themeTextHeader}`}>
-                            New Custom Exercise
-                          </Text>
-                          <TouchableOpacity 
-                            onPress={() => setShowCustomExModal(false)} 
-                            style={{ 
-                              padding: 6,
-                              borderWidth: 1,
-                              borderRadius: 100,
-                              borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7',
-                              backgroundColor: isDark ? 'rgba(24, 24, 27, 0.8)' : '#f4f4f5'
-                            }}
-                          >
-                            <X size={12} color="#71717a" strokeWidth={2} />
-                          </TouchableOpacity>
-                        </View>
-
-                        {/* Name Input */}
-                        <Text className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Exercise Name</Text>
-                        <View 
-                          style={{
-                            borderWidth: 1,
-                            padding: 2,
-                            marginBottom: 16,
-                            backgroundColor: isDark ? 'rgba(24, 24, 27, 0.4)' : '#f4f4f5',
-                            borderRadius: 14,
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1',
-                          }}
-                        >
-                          <TextInput
-                            className={`px-4 py-3 text-sm h-11 ${themeInputText}`}
-                            placeholder="e.g., Kettlebell Swing"
-                            placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
-                            value={customExName}
-                            onChangeText={setCustomExName}
-                            autoCapitalize="words"
-                          />
-                        </View>
-
-                        {/* Target Muscle Group Dropdown/Select presets */}
-                        <Text className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Target Muscle Group</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-                          {categories.filter(c => c !== 'All').map((cat) => (
-                            <TouchableOpacity
-                              key={cat}
-                              onPress={() => setCustomExMuscle(cat)}
-                              style={{ 
-                                paddingHorizontal: 12,
-                                paddingVertical: 8,
-                                marginRight: 6,
-                                borderWidth: 1,
-                                borderRadius: 100,
-                                backgroundColor: customExMuscle === cat ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff'),
-                                borderColor: customExMuscle === cat ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1')
-                              }}
-                            >
-                              <Text 
-                                className="text-[9px] font-bold uppercase tracking-wider"
-                                style={{ color: customExMuscle === cat ? '#ffffff' : '#8e8e93' }}
-                              >
-                                {cat}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-
-                        {/* Exercise Type presets */}
-                        <Text className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Exercise Type</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
-                          {['Barbell', 'Dumbbell', 'Machine', 'Cable', 'Kettlebell', 'Band', 'Weighted Bodyweight', 'Assisted Bodyweight', 'Reps', 'Duration', 'Distance', 'Other'].map((type) => (
-                            <TouchableOpacity
-                              key={type}
-                              onPress={() => setCustomExType(type)}
-                              style={{ 
-                                paddingHorizontal: 12,
-                                paddingVertical: 8,
-                                marginRight: 6,
-                                borderWidth: 1,
-                                borderRadius: 100,
-                                backgroundColor: customExType === type ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff'),
-                                borderColor: customExType === type ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1')
-                              }}
-                            >
-                              <Text 
-                                className="text-[9px] font-bold uppercase tracking-wider"
-                                style={{ color: customExType === type ? '#ffffff' : '#8e8e93' }}
-                              >
-                                {type}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-
-                        {/* Create Button */}
-                        <TouchableOpacity
-                          onPress={handleCreateCustomExercise}
-                          disabled={creatingCustomEx}
-                          className="w-full py-3.5 bg-[#ea580c] items-center justify-center"
-                          style={{ borderRadius: 14 }}
-                        >
-                          {creatingCustomEx ? (
-                            <ActivityIndicator color="#ffffff" />
-                          ) : (
-                            <Text className="text-white font-bold text-xs uppercase tracking-wider">
-                              Create & Add Exercise
-                            </Text>
-                          )}
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
-                </SafeAreaView>
-              </View>
-            )}
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </Modal>
-    </SafeAreaView>
+                <Button
+                  label="Create & add exercise"
+                  fullWidth
+                  loading={creatingCustomEx}
+                  onPress={handleCreateCustomExercise}
+                />
+              </Card>
+            </View>
+          )}
+        </Sheet>
+      </Sheet>
+    </View>
   );
 }
