@@ -10,6 +10,7 @@ import {
 import { Text } from './Text';
 import type { ColorToken } from '../../theme';
 import { useThemeTokens } from '../../theme/useThemeTokens';
+import { usePressed } from './usePressed';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'destructive' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -41,10 +42,13 @@ export const Button = React.memo(function Button({
   leading,
   disabled,
   style,
+  onPressIn,
+  onPressOut,
   ...rest
 }: ButtonProps) {
   const t = useThemeTokens();
   const isDisabled = disabled || loading;
+  const press = usePressed(onPressIn, onPressOut);
 
   const { container, labelColor } = useMemo(() => {
     const base: ViewStyle = {
@@ -93,12 +97,10 @@ export const Button = React.memo(function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
-      style={({ pressed }) => [
-        container,
-        pressed && { opacity: 0.75 },
-        isDisabled && { opacity: 0.45 },
-        style,
-      ]}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
+      // Plain array, never the `({ pressed }) => …` form — see usePressed.
+      style={[container, press.pressed && { opacity: 0.75 }, isDisabled && { opacity: 0.45 }, style]}
       {...rest}
     >
       {loading ? (

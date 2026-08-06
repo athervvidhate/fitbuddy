@@ -1,63 +1,54 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
-  Modal,
-  SafeAreaView,
   Alert,
   Platform,
   Pressable,
-  Dimensions,
   Keyboard,
 } from 'react-native';
 
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
-import { useUnits } from '../context/UnitContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { supabase } from '../lib/supabase';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import exercisesData from '../data/exercises.json';
 import { BackgroundGlows } from './background-glows';
-import { 
-  Flame, 
-  Clock, 
-  Plus, 
-  Check, 
-  X, 
-  Dumbbell, 
-  ChevronRight, 
-  AlertCircle,
-  FileText,
+import { Button, Card, Chip, Input, NumericInput, Sheet, Text } from './ui';
+import { useThemeTokens } from '../theme/useThemeTokens';
+import {
+  Flame,
+  Clock,
+  Plus,
+  Check,
+  X,
+  Dumbbell,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
 } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 const categories = ['All', 'Chest', 'Back', 'Legs', 'Shoulders', 'Biceps', 'Triceps', 'Core', 'Cardio'];
-const systemFont = Platform.OS === 'ios' ? 'System' : 'sans-serif';
 const customExerciseTypes = [
   'Barbell', 'Dumbbell', 'Machine', 'Cable', 'Kettlebell', 'Band',
   'Weighted Bodyweight', 'Assisted Bodyweight', 'Reps', 'Duration', 'Distance', 'Other',
 ];
 
-// Isolated Set Row Component for high-performance input editing and micro-animations
+const DEFAULT_REST_SECONDS = 90;
+
+// Isolated Set Row so per-keystroke edits and the check micro-animation don't re-render siblings.
 interface SetRowProps {
   set: any;
   setIdx: number;
   exIdx: number;
   updateSetLog: (exIdx: number, setIdx: number, fields: any) => void;
   triggerRestTimer: (seconds: number) => void;
-  weightUnit: string;
 }
 
-function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit }: SetRowProps) {
-  const { colors, isDark } = useTheme();
-  const [focusedField, setFocusedField] = useState<'weight' | 'reps' | null>(null);
+function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer }: SetRowProps) {
+  const t = useThemeTokens();
   const scale = useSharedValue(1);
 
   const checkAnimatedStyle = useAnimatedStyle(() => ({
@@ -73,112 +64,107 @@ function SetRow({ set, setIdx, exIdx, updateSetLog, triggerRestTimer, weightUnit
     });
     updateSetLog(exIdx, setIdx, { isCompleted: nextCompleted });
     if (nextCompleted) {
-      triggerRestTimer(90); // Default 90s rest
+      triggerRestTimer(DEFAULT_REST_SECONDS);
     }
   };
 
   return (
     <View
-      className="flex-row items-center py-3 px-3.5 border mb-2"
       style={{
-        borderRadius: 14,
-        backgroundColor: set.isCompleted 
-          ? 'rgba(234, 88, 12, 0.08)' 
-          : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#f4f4f5'),
-        borderColor: set.isCompleted 
-          ? 'rgba(234, 88, 12, 0.3)' 
-          : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#e4e4e7'),
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: t.spacing.sm,
+        paddingVertical: t.spacing.sm,
+        paddingHorizontal: t.spacing.md,
+        marginBottom: t.spacing.sm,
+        borderRadius: t.radius.md,
+        borderWidth: 1,
+        backgroundColor: set.isCompleted ? t.color.accentSoft : t.color.surfaceRaised,
+        borderColor: set.isCompleted ? t.color.accent : t.color.border,
       }}
     >
-      {/* Set Number */}
       <Text
-        className={`w-8 text-sm font-bold ${set.isCompleted ? 'text-[#ea580c]' : 'text-zinc-500'}`}
-        style={{ fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' }}
+        variant="label"
+        color={set.isCompleted ? 'accent' : 'textTertiary'}
+        tabular
+        style={{ width: 26 }}
       >
         {String(setIdx + 1).padStart(2, '0')}
       </Text>
 
-      {/* Weight Input */}
-      <View className="flex-1 px-1.5">
-        <TextInput
-          keyboardType="numeric"
+      <View style={{ flex: 1 }}>
+        <NumericInput
           placeholder={set.placeholderWeight || '0'}
-          placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
-          className={`text-center text-sm py-3 font-bold h-12 border ${
-            isDark ? 'bg-zinc-900/40 text-[#e2e2e5]' : 'bg-white text-zinc-900'
-          }`}
-          style={{
-            borderRadius: 10,
-            borderColor: focusedField === 'weight' 
-              ? '#ea580c' 
-              : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#cbd5e1'),
-          }}
           value={set.weight}
           onChangeText={(val) => updateSetLog(exIdx, setIdx, { weight: val })}
-          selectTextOnFocus
-          onFocus={() => setFocusedField('weight')}
-          onBlur={() => setFocusedField(null)}
+          style={{ height: 44 }}
         />
       </View>
 
-      {/* Reps Input */}
-      <View className="flex-1 px-1.5">
-        <TextInput
-          keyboardType="numeric"
+      <View style={{ flex: 1 }}>
+        <NumericInput
           placeholder={set.placeholderReps || '10'}
-          placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
-          className={`text-center text-sm py-3 font-bold h-12 border ${
-            isDark ? 'bg-zinc-900/40 text-[#e2e2e5]' : 'bg-white text-zinc-900'
-          }`}
-          style={{
-            borderRadius: 10,
-            borderColor: focusedField === 'reps' 
-              ? '#ea580c' 
-              : (isDark ? 'rgba(255, 255, 255, 0.06)' : '#cbd5e1'),
-          }}
           value={set.reps}
           onChangeText={(val) => updateSetLog(exIdx, setIdx, { reps: val })}
-          selectTextOnFocus
-          onFocus={() => setFocusedField('reps')}
-          onBlur={() => setFocusedField(null)}
+          style={{ height: 44 }}
         />
       </View>
 
-      {/* Done Checkbox */}
-      <View className="w-12 items-end">
-        <Pressable onPress={handleToggleCompleted}>
-          <Animated.View
-            style={[
-              checkAnimatedStyle,
-              {
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: set.isCompleted 
-                  ? '#ea580c' 
-                  : (isDark ? 'rgba(255, 255, 255, 0.04)' : '#e2e8f0'),
-                borderWidth: 1,
-                borderColor: set.isCompleted 
-                  ? '#ea580c' 
-                  : (isDark ? 'rgba(255, 255, 255, 0.12)' : '#cbd5e1'),
-              },
-            ]}
-          >
-            {set.isCompleted && <Check color="#ffffff" size={16} strokeWidth={3} />}
-          </Animated.View>
-        </Pressable>
-      </View>
+      <Pressable onPress={handleToggleCompleted} hitSlop={8}>
+        <Animated.View
+          style={[
+            checkAnimatedStyle,
+            {
+              width: 36,
+              height: 36,
+              borderRadius: t.radius.sm,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              backgroundColor: set.isCompleted ? t.color.accent : t.color.surface,
+              borderColor: set.isCompleted ? t.color.accent : t.color.border,
+            },
+          ]}
+        >
+          {set.isCompleted && <Check color={t.color.onAccent} size={18} strokeWidth={3} />}
+        </Animated.View>
+      </Pressable>
+    </View>
+  );
+}
+
+/** Column captions above each exercise's sets, aligned to the SetRow layout. */
+function SetHeaderRow() {
+  const t = useThemeTokens();
+  const cell = { textAlign: 'center' as const };
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: t.spacing.sm,
+        paddingHorizontal: t.spacing.md,
+        marginBottom: t.spacing.xs,
+      }}
+    >
+      <Text variant="caption" color="textTertiary" style={{ width: 26 }}>
+        Set
+      </Text>
+      <Text variant="caption" color="textTertiary" style={[{ flex: 1 }, cell]}>
+        Weight
+      </Text>
+      <Text variant="caption" color="textTertiary" style={[{ flex: 1 }, cell]}>
+        Reps
+      </Text>
+      <View style={{ width: 36 }} />
     </View>
   );
 }
 
 export function ActiveWorkoutLogger() {
   const { user } = useAuth();
-  const { colors, isDark } = useTheme();
-  const { weightUnit } = useUnits();
-  
+  const t = useThemeTokens();
+
   const restEndTimeRef = useRef<number>(0);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -204,35 +190,26 @@ export function ActiveWorkoutLogger() {
       hideSubscription.remove();
     };
   }, []);
-  
+
   const insets = useSafeAreaInsets();
-  const bottomInset = insets.bottom;
-  const floatingBottom = bottomInset > 0 ? bottomInset : 16;
-  const loggerBottomPosition = floatingBottom + 62 + 12;
+  const floatingBottom = insets.bottom > 0 ? insets.bottom : t.spacing.lg;
+  // Sits above the floating tab bar (62 + 16 gap), matching Screen's inset geometry.
+  const loggerBottomPosition = floatingBottom + 62 + t.spacing.md;
 
-  // Premium adaptive theme tokens
-  const themeCard = isDark ? 'bg-zinc-950/60 border-white/5' : 'bg-white border-zinc-200/80';
-  const themeTextHeader = isDark ? 'text-[#e2e2e5]' : 'text-zinc-900';
-  const themeTextSub = isDark ? 'text-zinc-400' : 'text-zinc-600';
-  const themeInputText = isDark ? 'text-[#e2e2e5]' : 'text-zinc-900';
-  const themeHeaderBg = isDark ? 'bg-zinc-950/60 border-white/5' : 'bg-zinc-100/90 border-zinc-200';
-  const themeBorder = isDark ? 'border-white/5' : 'border-zinc-200/80';
-  const themeDivider = isDark ? 'border-white/5' : 'border-zinc-200/60';
-
-  const { 
-    activeWorkout, 
-    elapsedSeconds, 
-    addExerciseToWorkout, 
-    removeExerciseFromWorkout, 
-    addSetToExercise, 
-    removeSetFromExercise, 
-    updateSetLog, 
-    cancelWorkout, 
+  const {
+    activeWorkout,
+    elapsedSeconds,
+    addExerciseToWorkout,
+    removeExerciseFromWorkout,
+    addSetToExercise,
+    removeSetFromExercise,
+    updateSetLog,
+    cancelWorkout,
     finishWorkout,
     reorderExerciseInWorkout,
     updateExerciseNotes,
     loggerVisible,
-    setLoggerVisible
+    setLoggerVisible,
   } = useWorkout();
 
   // Custom Exercise States
@@ -252,22 +229,7 @@ export function ActiveWorkoutLogger() {
   const [showRestTimer, setShowRestTimer] = useState(false);
   const restTimerRef = useRef<any>(null);
 
-  // Keeps the logger's contents mounted through the dismiss animation, then drops them.
-  // Unmounting the instant loggerVisible flips false would blank the sheet mid-slide-out.
-  const [renderLoggerContent, setRenderLoggerContent] = useState(loggerVisible);
-
-  useEffect(() => {
-    if (loggerVisible) {
-      setRenderLoggerContent(true);
-      return;
-    }
-    const timeout = setTimeout(() => setRenderLoggerContent(false), 400);
-    return () => clearTimeout(timeout);
-  }, [loggerVisible]);
-
   // Merge + filter the exercise catalogue once per input change rather than on every render.
-  // This previously ran inside an inline IIFE in the picker's ScrollView, so it re-ran on every
-  // keystroke and on every unrelated re-render of the logger.
   const mergedExercises = useMemo(() => {
     const merged: any[] = [...exercisesData];
     customExercises.forEach((ce) => {
@@ -315,18 +277,16 @@ export function ActiveWorkoutLogger() {
         name: customExName.trim(),
         category: customExMuscle,
         instructions: [`type:${customExType.toLowerCase()}`],
-        user_id: user.id
+        user_id: user.id,
       };
-      
-      const { error } = await supabase
-        .from('exercises')
-        .insert(newEx);
+
+      const { error } = await supabase.from('exercises').insert(newEx);
 
       if (error) throw error;
 
       setCustomExercises((prev) => [...prev, newEx]);
-      
-      // Automatically add it to active workout session and close creator modal
+
+      // Automatically add it to active workout session and close both overlays
       addExerciseToWorkout(newEx);
       setShowCustomExModal(false);
       setShowExerciseModal(false);
@@ -432,474 +392,616 @@ export function ActiveWorkoutLogger() {
     return hours > 0 ? `${hours}:${pad(mins)}:${pad(secs)}` : `${mins}:${pad(secs)}`;
   };
 
+  const openExercisePicker = () => {
+    setSearchQuery('');
+    setSelectedCategory('All');
+    setShowExerciseModal(true);
+  };
+
   if (!activeWorkout) return null;
 
   return (
     <>
-      {/* 1. PERSISTENT BOTTOM BAR */}
+      {/* 1. PERSISTENT MINIMIZED BAR */}
       {!loggerVisible && (
-        <View 
-          className={`absolute left-4 right-4 border p-5 flex-row justify-between items-center ${isDark ? 'bg-zinc-950/90 border-[#ea580c]/30' : 'bg-white border-[#ea580c]/50'}`}
-          style={{ bottom: loggerBottomPosition, borderRadius: 20, elevation: 10, zIndex: 99 }}
+        <Card
+          elevation="raised"
+          radius="xl"
+          style={{
+            position: 'absolute',
+            left: t.spacing.lg,
+            right: t.spacing.lg,
+            bottom: loggerBottomPosition,
+            borderColor: t.color.accent,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            zIndex: 99,
+          }}
         >
-          <View className="flex-1 pr-3">
-            <View className="flex-row items-center gap-1.5">
-              <Flame size={12} color="#ea580c" />
-              <Text className="text-[#ea580c] font-bold text-xs uppercase tracking-wider">Workout in progress</Text>
+          <View style={{ flex: 1, paddingRight: t.spacing.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.xs }}>
+              <Flame size={13} color={t.color.accent} />
+              <Text variant="caption" color="accent">
+                Workout in progress
+              </Text>
             </View>
-            <Text className={`font-semibold text-sm mt-1.5 ${themeTextHeader}`} numberOfLines={1}>
-              {activeWorkout.name} • {formatTime(elapsedSeconds)}
+            <Text variant="bodyStrong" numberOfLines={1} style={{ marginTop: t.spacing.xs }} tabular>
+              {activeWorkout.name} · {formatTime(elapsedSeconds)}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => setLoggerVisible(true)} className="bg-[#ea580c] px-5 py-3" style={{ borderRadius: 12 }}>
-            <Text className="text-white font-bold text-xs uppercase tracking-wider">Resume</Text>
-          </TouchableOpacity>
-        </View>
+          <Button label="Resume" size="sm" onPress={() => setLoggerVisible(true)} />
+        </Card>
       )}
 
       {/* 2. PERSISTENT REST TIMER */}
       {showRestTimer && (
-        <View 
-          className={`absolute top-14 left-4 right-4 border py-4 px-4.5 flex-row justify-between items-center z-50 ${isDark ? 'bg-zinc-950/90 border-[#ea580c]/20' : 'bg-white border-[#ea580c]/30'}`}
-          style={{ borderRadius: 18, elevation: 8 }}
+        <Card
+          elevation="raised"
+          radius="lg"
+          padding="md"
+          style={{
+            position: 'absolute',
+            top: insets.top + t.spacing.sm,
+            left: t.spacing.lg,
+            right: t.spacing.lg,
+            borderColor: t.color.accent,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            zIndex: 100,
+          }}
         >
-          <View className="flex-row items-center gap-2">
-            <Clock size={16} color="#ea580c" />
-            <Text className="text-[#ea580c] font-bold text-sm uppercase tracking-wider">Rest: {formatTime(restSeconds)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
+            <Clock size={18} color={t.color.accent} />
+            <Text variant="bodyStrong" color="accent" tabular>
+              Rest · {formatTime(restSeconds)}
+            </Text>
           </View>
-          <View className="flex-row items-center gap-2">
-            <TouchableOpacity onPress={handleExtendRest} className={`border px-4.5 py-2.5 ${isDark ? 'bg-zinc-900 border-white/5' : 'bg-zinc-100 border-zinc-200'}`} style={{ borderRadius: 10 }}>
-              <Text className="text-[#ea580c] font-bold text-xs uppercase tracking-wider">+30s</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
+            <Button label="+30s" size="sm" variant="secondary" onPress={handleExtendRest} />
+            <TouchableOpacity
+              onPress={handleCancelRest}
+              hitSlop={8}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: t.radius.sm,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: t.color.border,
+                backgroundColor: t.color.surfaceRaised,
+              }}
+            >
+              <X size={16} color={t.color.danger} strokeWidth={2.5} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleCancelRest} className={`border px-4 py-2.5 ${isDark ? 'bg-red-950/30 border-red-500/20' : 'bg-red-50 border-red-200'}`} style={{ borderRadius: 10 }}>
-              <X size={12} color="#ff453a" strokeWidth={2.5} />
+          </View>
+        </Card>
+      )}
+
+      {/* 3. FULLSCREEN LOGGER — Sheet carries the delayed-unmount fix (ticket 02). */}
+      <Sheet visible={loggerVisible} onRequestClose={() => setLoggerVisible(false)}>
+        <BackgroundGlows />
+
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingHorizontal: t.spacing.lg,
+            paddingBottom: t.spacing.md,
+            borderBottomWidth: 1,
+            borderBottomColor: t.color.borderSoft,
+          }}
+        >
+          <View style={{ flex: 1, paddingRight: t.spacing.md }}>
+            <Text variant="caption" color="textTertiary">
+              Current workout
+            </Text>
+            <Text variant="heading" numberOfLines={1} style={{ marginTop: 2 }}>
+              {activeWorkout?.name}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.sm }}>
+            <View
+              style={{
+                paddingHorizontal: t.spacing.md,
+                paddingVertical: t.spacing.xs,
+                borderRadius: t.radius.pill,
+                borderWidth: 1,
+                borderColor: t.color.border,
+                backgroundColor: t.color.surfaceRaised,
+              }}
+            >
+              <Text variant="label" color="accent" tabular>
+                {formatTime(elapsedSeconds)}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleCancelWorkout}
+              style={{
+                paddingHorizontal: t.spacing.md,
+                paddingVertical: t.spacing.xs,
+                borderRadius: t.radius.pill,
+                borderWidth: 1,
+                borderColor: t.color.danger,
+              }}
+            >
+              <Text variant="label" color="danger">
+                Cancel
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
-      )}
 
-      {/* 3. FULL SCREEN LOGGER MODAL */}
-      {/*
-        React Native renders Modal children even while visible={false}. This component is mounted
-        permanently by the tabs layout, and the workout timer ticks WorkoutContext every second —
-        so a *minimized* workout was re-rendering this entire tree (every exercise card, SetRow and
-        TextInput) once per second, invisibly. Gating makes a closed logger free.
-      */}
-      <Modal visible={loggerVisible} animationType="slide" presentationStyle="fullScreen">
-        {renderLoggerContent && (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.dark }}>
-          <BackgroundGlows />
-          <View className={`flex-row justify-between items-center px-4 py-4 border-b ${themeBorder} ${themeHeaderBg}`}>
-            <View>
-              <Text className="text-zinc-500 text-[10px] font-semibold">Current Workout</Text>
-              <Text className={`text-sm font-bold mt-1 ${themeTextHeader}`}>{activeWorkout?.name}</Text>
-            </View>
-            <View className="flex-row items-center gap-2">
-              <View className={`px-3 py-1.5 border ${themeBorder} ${isDark ? 'bg-zinc-900/80' : 'bg-zinc-100'}`} style={{ borderRadius: 100 }}>
-                <Text className="text-[#ea580c] font-bold text-xs">{formatTime(elapsedSeconds)}</Text>
-              </View>
-              <TouchableOpacity onPress={handleCancelWorkout} className={`px-3.5 py-1.5 border ${isDark ? 'border-red-500/20 bg-red-950/10' : 'border-red-200 bg-red-50'}`} style={{ borderRadius: 100 }}>
-                <Text className="text-[#ff453a] text-xs font-semibold">Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{
+            paddingHorizontal: t.spacing.lg,
+            paddingTop: t.spacing.lg,
+            paddingBottom: t.spacing.xxl,
+          }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Input
+            label="Workout notes"
+            placeholder="Add notes…"
+            value={workoutNotes}
+            onChangeText={setWorkoutNotes}
+            multiline
+            containerStyle={{ marginBottom: t.spacing.xl }}
+            style={{ height: 64, paddingTop: t.spacing.md, textAlignVertical: 'top' }}
+          />
 
-          <ScrollView 
-            style={{ flex: 1, backgroundColor: 'transparent' }}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 }}
-          >
-            <View className={`border p-3.5 mb-6 ${themeCard}`} style={{ borderRadius: 18 }}>
-              <View className="flex-row items-center gap-1.5 mb-1">
-                <FileText size={11} color="#71717a" />
-                <Text className="text-[10px] font-bold text-zinc-500 uppercase">Workout Notes</Text>
-              </View>
-              <TextInput 
-                className={`text-xs h-12 ${themeInputText}`} 
-                placeholder="Add notes..." 
-                placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'} 
-                value={workoutNotes} 
-                onChangeText={setWorkoutNotes} 
-                multiline 
-              />
-            </View>
-
-            {activeWorkout?.exercises.length === 0 ? (
-              <View className={`py-16 items-center justify-center gap-3 border border-dashed ${themeBorder}`} style={{ borderRadius: 24 }}>
-                <Dumbbell size={28} color="#5c5c61" />
-                <Text className={`font-bold text-sm ${themeTextSub}`}>No exercises added</Text>
-              </View>
-            ) : (
-              activeWorkout?.exercises.map((ex, exIdx) => (
-                <View key={ex.id + exIdx} className={`border p-4 mb-6 ${themeCard}`} style={{ borderRadius: 24 }}>
-                  <View className={`flex-row justify-between items-center mb-3 pb-2.5 border-b ${themeDivider}`}>
-                    <View className="flex-1 pr-2">
-                      <Text className={`font-bold text-sm uppercase ${themeTextHeader}`}>{ex.name}</Text>
-                      <Text className="text-[#ea580c] text-[9px] uppercase font-bold mt-0.5">
-                        {ex.category}{getExerciseTypeLabel(ex) ? ` • ${getExerciseTypeLabel(ex)}` : ''}
-                      </Text>
-                    </View>
-                    <View className="flex-row items-center gap-1.5 mr-2">
-                      {exIdx > 0 && (
-                        <TouchableOpacity
-                          onPress={() => reorderExerciseInWorkout(exIdx, exIdx - 1)}
-                          style={{
-                            padding: 6,
-                            borderWidth: 1,
-                            borderRadius: 8,
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7',
-                            backgroundColor: isDark ? 'rgba(24, 24, 27, 0.5)' : '#f4f4f5'
-                          }}
-                        >
-                          <ChevronUp size={12} color="#ea580c" strokeWidth={2.5} />
-                        </TouchableOpacity>
-                      )}
-                      {exIdx < activeWorkout.exercises.length - 1 && (
-                        <TouchableOpacity
-                          onPress={() => reorderExerciseInWorkout(exIdx, exIdx + 1)}
-                          style={{
-                            padding: 6,
-                            borderWidth: 1,
-                            borderRadius: 8,
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7',
-                            backgroundColor: isDark ? 'rgba(24, 24, 27, 0.5)' : '#f4f4f5'
-                          }}
-                        >
-                          <ChevronDown size={12} color="#ea580c" strokeWidth={2.5} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <TouchableOpacity onPress={() => removeExerciseFromWorkout(exIdx)} className={`px-3 py-1.5 border ${isDark ? 'bg-red-950/10 border-red-500/20' : 'bg-red-50 border-red-200'}`} style={{ borderRadius: 100 }}>
-                      <Text className="text-[#ff453a] font-bold text-[9px] uppercase">Remove</Text>
-                    </TouchableOpacity>
-                  </View>
-                  
-                  {/* Exercise Note Input */}
-                  <View 
-                    className="mb-3.5 px-1"
-                    style={{
-                      borderBottomWidth: 1,
-                      borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#e4e4e7',
-                      paddingBottom: 8,
-                    }}
-                  >
-                    <TextInput
-                      placeholder="Add exercise notes (e.g., tempo, cues)..."
-                      placeholderTextColor={isDark ? '#444448' : '#a1a1aa'}
-                      className={`text-xs py-1 ${themeInputText}`}
-                      value={ex.notes || ''}
-                      onChangeText={(text) => updateExerciseNotes(exIdx, text)}
-                      style={{ fontFamily: systemFont }}
-                    />
-                  </View>
-
-                  {ex.sets.map((set, setIdx) => (
-                    <SetRow 
-                      key={setIdx} 
-                      set={set} 
-                      setIdx={setIdx} 
-                      exIdx={exIdx} 
-                      updateSetLog={updateSetLog} 
-                      triggerRestTimer={triggerRestTimer} 
-                      weightUnit={weightUnit} 
-                    />
-                  ))}
-                  
-                  <View className={`flex-row justify-between items-center mt-3.5 pt-3 border-t ${themeDivider}`}>
-                    <TouchableOpacity onPress={() => addSetToExercise(exIdx)} className="border border-[#ea580c]/30 bg-[#ea580c]/5 py-2.5 px-5" style={{ borderRadius: 100 }}>
-                      <Text className="text-[#ea580c] text-xs font-bold uppercase">+ Add Set</Text>
-                    </TouchableOpacity>
-                    {ex.sets.length > 1 && (
-                      <TouchableOpacity onPress={() => removeSetFromExercise(exIdx, ex.sets.length - 1)} className={`border py-2.5 px-5 ${isDark ? 'bg-zinc-900 border-white/5' : 'bg-zinc-100 border-zinc-200'}`} style={{ borderRadius: 100 }}>
-                        <Text className={`text-xs font-bold uppercase ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>- Del Set</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-              ))
-            )}
-            
-            <TouchableOpacity 
-              onPress={() => { setSearchQuery(''); setSelectedCategory('All'); setShowExerciseModal(true); }} 
-              className={`border border-dashed py-4 items-center justify-center flex-row gap-2 mb-16 ${themeCard}`} 
-              style={{ borderRadius: 20 }}
-            >
-              <Plus color="#ea580c" size={14} />
-              <Text className="text-[#ea580c] font-bold text-xs uppercase">Add Exercise</Text>
-            </TouchableOpacity>
-          </ScrollView>
-
-          <View className={`px-4 py-4 border-t flex-row gap-4 ${themeBorder} ${themeHeaderBg}`}>
-            <TouchableOpacity 
-              onPress={() => setLoggerVisible(false)} 
+          {activeWorkout?.exercises.length === 0 ? (
+            <Card
+              bordered
               style={{
-                flex: 1,
-                borderWidth: 1,
-                paddingVertical: 14,
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: 16,
-                backgroundColor: isDark ? 'rgba(24, 24, 27, 0.8)' : '#f4f4f5',
-                borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7'
+                gap: t.spacing.md,
+                paddingVertical: t.spacing.xxxl,
+                borderStyle: 'dashed',
+                borderColor: t.color.border,
               }}
             >
-              <Text className={isDark ? 'text-zinc-400 font-semibold' : 'text-zinc-600 font-semibold'}>Minimize</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={handleFinishWorkout} 
-              disabled={loggingWorkout} 
-              style={{
-                flex: 1,
-                backgroundColor: '#ea580c',
-                paddingVertical: 14,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 16
-              }}
-            >
-              {loggingWorkout ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-semibold">Finish Workout</Text>}
-            </TouchableOpacity>
-          </View>
-
-          {/* EXERCISE SELECTOR OVERLAY */}
-          {showExerciseModal && (
-            <View 
-              style={{ 
-                position: 'absolute', 
-                top: 0, 
-                bottom: 0, 
-                left: 0, 
-                right: 0, 
-                zIndex: 50, 
-                backgroundColor: colors.dark 
-              }}
-            >
-              <SafeAreaView style={{ flex: 1 }}>
-                <BackgroundGlows />
-                <View className={`flex-row justify-between items-center px-4 py-4 border-b ${themeBorder} ${themeHeaderBg}`}>
-                  <Text className={`text-sm font-bold ${themeTextHeader}`}>Add Exercise</Text>
-                  <TouchableOpacity onPress={() => setShowExerciseModal(false)} style={{ padding: 6, borderWidth: 1, borderRadius: 100, borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7', backgroundColor: isDark ? 'rgba(24, 24, 27, 0.8)' : '#f4f4f5' }}><X size={14} color="#71717a" /></TouchableOpacity>
-                </View>
-                <View className={`px-4 py-3 border-b ${themeBorder} ${isDark ? 'bg-zinc-950/40' : 'bg-zinc-50'}`}><TextInput className={`text-sm h-8 ${themeInputText}`} placeholder="Search..." placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'} value={searchQuery} onChangeText={setSearchQuery} /></View>
-                
-                {/* Create Custom Exercise Trigger Button */}
-                <TouchableOpacity 
-                  onPress={() => {
-                    setCustomExName('');
-                    setCustomExMuscle('Chest');
-                    setCustomExType('Barbell');
-                    setShowCustomExModal(true);
-                  }}
+              <Dumbbell size={28} color={t.color.textTertiary} />
+              <Text variant="body" color="textSecondary">
+                No exercises added
+              </Text>
+            </Card>
+          ) : (
+            activeWorkout?.exercises.map((ex, exIdx) => (
+              <Card
+                key={ex.id + exIdx}
+                style={{ marginBottom: t.spacing.lg }}
+              >
+                {/* Exercise header */}
+                <View
                   style={{
                     flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingVertical: 12,
-                    backgroundColor: isDark ? 'rgba(234, 88, 12, 0.1)' : 'rgba(234, 88, 12, 0.05)',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: t.spacing.md,
+                    paddingBottom: t.spacing.md,
                     borderBottomWidth: 1,
-                    borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7'
+                    borderBottomColor: t.color.borderSoft,
                   }}
                 >
-                  <Plus size={14} color="#ea580c" style={{ marginRight: 6 }} />
-                  <Text className="text-[#ea580c] font-bold text-xs uppercase tracking-wider">Create Custom Exercise</Text>
-                </TouchableOpacity>
-
-                <View className={`py-3 border-b ${themeBorder} ${isDark ? 'bg-zinc-950/20' : 'bg-zinc-100/30'}`}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} className="px-4">
-                    {categories.map((cat) => (
-                      <TouchableOpacity key={cat} onPress={() => setSelectedCategory(cat)} className="px-4 py-2 mr-2 border" style={{ borderRadius: 100, backgroundColor: selectedCategory === cat ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff'), borderColor: selectedCategory === cat ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#e4e4e7') }}>
-                        <Text className="text-[10px] font-bold uppercase" style={{ color: selectedCategory === cat ? '#ffffff' : '#8e8e93' }}>{cat}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-                
-                <ScrollView className="flex-1 px-4 pt-3">
-                  {filteredExercises.length === 0 ? (
-                    <View className="py-16 items-center justify-center">
-                      <Text className="text-zinc-500 text-sm font-bold uppercase tracking-wider">No Matching Records</Text>
-                    </View>
-                  ) : (
-                    filteredExercises.map((ex) => (
-                      <TouchableOpacity key={ex.id} onPress={() => { addExerciseToWorkout(ex); setShowExerciseModal(false); }} className={`border p-4 mb-3 flex-row justify-between items-center ${themeCard}`} style={{ borderRadius: 18 }}>
-                        <View className="flex-1 pr-2"><Text className={`font-semibold text-sm ${themeTextHeader}`}>{ex.name}</Text><Text className="text-[#ea580c] text-[10px] font-semibold mt-1">{ex.category}{getExerciseTypeLabel(ex) ? ` • ${getExerciseTypeLabel(ex)}` : ''}</Text></View>
-                        <View className={`w-7 h-7 border items-center justify-center ${isDark ? 'bg-zinc-900/80' : 'bg-zinc-100'}`} style={{ borderRadius: 100 }}><Plus color="#ea580c" size={14} /></View>
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </ScrollView>
-
-                {/* CREATE CUSTOM EXERCISE OVERLAY */}
-                {showCustomExModal && (
-                  <View 
-                    style={{ 
-                      position: 'absolute', 
-                      top: 0, 
-                      bottom: 0, 
-                      left: 0, 
-                      right: 0, 
-                      zIndex: 60, 
-                      backgroundColor: 'rgba(0, 0, 0, 0.82)',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      paddingHorizontal: 24
-                    }}
-                  >
-                    <View 
-                      style={{
-                        borderWidth: 1,
-                        padding: 24,
-                        width: '100%',
-                        borderRadius: 24,
-                        backgroundColor: isDark ? '#0d0d11' : '#ffffff',
-                        borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#e4e4e7',
-                        elevation: 8,
-                      }}
-                    >
-                      <View className="flex-row justify-between items-center mb-5">
-                        <Text className={`text-sm font-bold uppercase tracking-wider ${themeTextHeader}`}>
-                          New Custom Exercise
-                        </Text>
-                        <TouchableOpacity 
-                          onPress={() => setShowCustomExModal(false)} 
-                          style={{ 
-                            padding: 6,
-                            borderWidth: 1,
-                            borderRadius: 100,
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.05)' : '#e4e4e7',
-                            backgroundColor: isDark ? 'rgba(24, 24, 27, 0.8)' : '#f4f4f5'
-                          }}
-                        >
-                          <X size={12} color="#71717a" strokeWidth={2} />
-                        </TouchableOpacity>
-                      </View>
-
-                      {/* Name Input */}
-                      <Text className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Exercise Name</Text>
-                      <View 
+                  <View style={{ flex: 1, paddingRight: t.spacing.sm }}>
+                    <Text variant="bodyStrong" numberOfLines={2}>
+                      {ex.name}
+                    </Text>
+                    <Text variant="caption" color="accent" style={{ marginTop: 2 }}>
+                      {ex.category}
+                      {getExerciseTypeLabel(ex) ? ` · ${getExerciseTypeLabel(ex)}` : ''}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.xs }}>
+                    {exIdx > 0 && (
+                      <TouchableOpacity
+                        onPress={() => reorderExerciseInWorkout(exIdx, exIdx - 1)}
+                        hitSlop={6}
                         style={{
+                          padding: 6,
                           borderWidth: 1,
-                          padding: 2,
-                          marginBottom: 16,
-                          backgroundColor: isDark ? 'rgba(24, 24, 27, 0.4)' : '#f4f4f5',
-                          borderRadius: 14,
-                          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1',
+                          borderRadius: t.radius.sm,
+                          borderColor: t.color.border,
+                          backgroundColor: t.color.surfaceRaised,
                         }}
                       >
-                        <TextInput
-                          className={`px-4 py-3 text-sm h-11 ${themeInputText}`}
-                          placeholder="e.g., Kettlebell Swing"
-                          placeholderTextColor={isDark ? '#5c5c61' : '#a1a1aa'}
-                          value={customExName}
-                          onChangeText={setCustomExName}
-                          autoCapitalize="words"
-                        />
-                      </View>
-
-                      {/* Target Muscle Group Dropdown/Select presets */}
-                      <Text className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Target Muscle Group</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
-                        {categories.filter(c => c !== 'All').map((cat) => (
-                          <TouchableOpacity
-                            key={cat}
-                            onPress={() => setCustomExMuscle(cat)}
-                            style={{ 
-                              paddingHorizontal: 12,
-                              paddingVertical: 8,
-                              marginRight: 6,
-                              borderWidth: 1,
-                              borderRadius: 100,
-                              backgroundColor: customExMuscle === cat ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff'),
-                              borderColor: customExMuscle === cat ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1')
-                            }}
-                          >
-                            <Text 
-                              className="text-[9px] font-bold uppercase tracking-wider"
-                              style={{ color: customExMuscle === cat ? '#ffffff' : '#8e8e93' }}
-                            >
-                              {cat}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-
-                      {/* Exercise Type presets */}
-                      <Text className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Exercise Type</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-6">
-                        {customExerciseTypes.map((type) => (
-                          <TouchableOpacity
-                            key={type}
-                            onPress={() => setCustomExType(type)}
-                            style={{ 
-                              paddingHorizontal: 12,
-                              paddingVertical: 8,
-                              marginRight: 6,
-                              borderWidth: 1,
-                              borderRadius: 100,
-                              backgroundColor: customExType === type ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.02)' : '#ffffff'),
-                              borderColor: customExType === type ? '#ea580c' : (isDark ? 'rgba(255, 255, 255, 0.08)' : '#cbd5e1')
-                            }}
-                          >
-                            <Text 
-                              className="text-[9px] font-bold uppercase tracking-wider"
-                              style={{ color: customExType === type ? '#ffffff' : '#8e8e93' }}
-                            >
-                              {type}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-
-                      {/* Create Button */}
-                      <TouchableOpacity
-                        onPress={handleCreateCustomExercise}
-                        disabled={creatingCustomEx}
-                        className="w-full py-3.5 bg-[#ea580c] items-center justify-center"
-                        style={{ borderRadius: 14 }}
-                      >
-                        {creatingCustomEx ? (
-                          <ActivityIndicator color="#ffffff" />
-                        ) : (
-                          <Text className="text-white font-bold text-xs uppercase tracking-wider">
-                            Create & Add Exercise
-                          </Text>
-                        )}
+                        <ChevronUp size={14} color={t.color.accent} strokeWidth={2.5} />
                       </TouchableOpacity>
-                    </View>
+                    )}
+                    {exIdx < activeWorkout.exercises.length - 1 && (
+                      <TouchableOpacity
+                        onPress={() => reorderExerciseInWorkout(exIdx, exIdx + 1)}
+                        hitSlop={6}
+                        style={{
+                          padding: 6,
+                          borderWidth: 1,
+                          borderRadius: t.radius.sm,
+                          borderColor: t.color.border,
+                          backgroundColor: t.color.surfaceRaised,
+                        }}
+                      >
+                        <ChevronDown size={14} color={t.color.accent} strokeWidth={2.5} />
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity
+                      onPress={() => removeExerciseFromWorkout(exIdx)}
+                      hitSlop={6}
+                      style={{
+                        paddingHorizontal: t.spacing.md,
+                        paddingVertical: 6,
+                        borderRadius: t.radius.pill,
+                        borderWidth: 1,
+                        borderColor: t.color.danger,
+                      }}
+                    >
+                      <Text variant="caption" color="danger">
+                        Remove
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                )}
-              </SafeAreaView>
-            </View>
+                </View>
+
+                {/* Exercise notes */}
+                <Input
+                  placeholder="Add exercise notes (e.g. tempo, cues)…"
+                  value={ex.notes || ''}
+                  onChangeText={(text) => updateExerciseNotes(exIdx, text)}
+                  containerStyle={{ marginBottom: t.spacing.md }}
+                  style={{ height: 44 }}
+                />
+
+                <SetHeaderRow />
+
+                {ex.sets.map((set, setIdx) => (
+                  <SetRow
+                    key={setIdx}
+                    set={set}
+                    setIdx={setIdx}
+                    exIdx={exIdx}
+                    updateSetLog={updateSetLog}
+                    triggerRestTimer={triggerRestTimer}
+                  />
+                ))}
+
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: t.spacing.sm,
+                  }}
+                >
+                  <Button
+                    label="Add set"
+                    size="sm"
+                    variant="ghost"
+                    leading={<Plus size={16} color={t.color.accent} />}
+                    onPress={() => addSetToExercise(exIdx)}
+                  />
+                  {ex.sets.length > 1 && (
+                    <Button
+                      label="Remove set"
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => removeSetFromExercise(exIdx, ex.sets.length - 1)}
+                    />
+                  )}
+                </View>
+              </Card>
+            ))
           )}
 
-          {/* Floating Dismiss Keyboard Button */}
-          {keyboardVisible && (
+          <TouchableOpacity
+            onPress={openExercisePicker}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: t.spacing.sm,
+              paddingVertical: t.spacing.lg,
+              borderRadius: t.radius.xl,
+              borderWidth: 1,
+              borderStyle: 'dashed',
+              borderColor: t.color.accent,
+              backgroundColor: t.color.accentSoft,
+            }}
+          >
+            <Plus color={t.color.accent} size={18} />
+            <Text variant="bodyStrong" color="accent">
+              Add exercise
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* Footer */}
+        <View
+          style={{
+            flexDirection: 'row',
+            gap: t.spacing.md,
+            paddingHorizontal: t.spacing.lg,
+            paddingTop: t.spacing.md,
+            // Sheet's SafeAreaView already clears the home indicator; adding insets.bottom here
+            // too just doubled the gap.
+            paddingBottom: t.spacing.md,
+            borderTopWidth: 1,
+            borderTopColor: t.color.borderSoft,
+          }}
+        >
+          <Button
+            label="Minimize"
+            variant="secondary"
+            fullWidth
+            onPress={() => setLoggerVisible(false)}
+          />
+          <Button
+            label="Finish workout"
+            fullWidth
+            loading={loggingWorkout}
+            onPress={handleFinishWorkout}
+          />
+        </View>
+
+        {/* Floating keyboard-dismiss button */}
+        {keyboardVisible && (
+          <TouchableOpacity
+            onPress={() => Keyboard.dismiss()}
+            activeOpacity={0.8}
+            style={{
+              position: 'absolute',
+              bottom: Platform.OS === 'ios' ? keyboardHeight + t.spacing.lg : t.spacing.xl,
+              right: t.spacing.xl,
+              width: 48,
+              height: 48,
+              borderRadius: t.radius.pill,
+              backgroundColor: t.color.accent,
+              alignItems: 'center',
+              justifyContent: 'center',
+              ...t.elevation.overlay,
+              zIndex: 9999,
+            }}
+          >
+            <ChevronDown size={24} color={t.color.onAccent} strokeWidth={2.5} />
+          </TouchableOpacity>
+        )}
+        {/* 4. EXERCISE SELECTOR — nested INSIDE the logger Sheet: iOS will not present a
+            second Modal from a view controller that is already presenting one. */}
+        <Sheet visible={showExerciseModal} onRequestClose={() => setShowExerciseModal(false)}>
+          <BackgroundGlows />
+
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              paddingHorizontal: t.spacing.lg,
+              paddingBottom: t.spacing.md,
+              borderBottomWidth: 1,
+              borderBottomColor: t.color.borderSoft,
+            }}
+          >
+            <Text variant="heading">Add exercise</Text>
             <TouchableOpacity
-              onPress={() => Keyboard.dismiss()}
-              activeOpacity={0.8}
+              onPress={() => setShowExerciseModal(false)}
+              hitSlop={8}
               style={{
-                position: 'absolute',
-                bottom: Platform.OS === 'ios' ? keyboardHeight + 16 : 24,
-                right: 24,
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                backgroundColor: '#ea580c',
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 6,
-                elevation: 8,
-                zIndex: 9999,
+                padding: 8,
+                borderRadius: t.radius.pill,
+                borderWidth: 1,
+                borderColor: t.color.border,
+                backgroundColor: t.color.surfaceRaised,
               }}
             >
-              <ChevronDown size={24} color="#ffffff" strokeWidth={2.5} />
+              <X size={16} color={t.color.textSecondary} />
             </TouchableOpacity>
+          </View>
+
+          <View style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md }}>
+            <Input
+              placeholder="Search exercises…"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+
+          <View style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.md }}>
+            <Button
+              label="Create custom exercise"
+              variant="secondary"
+              fullWidth
+              leading={<Plus size={16} color={t.color.textPrimary} />}
+              onPress={() => {
+                setCustomExName('');
+                setCustomExMuscle('Chest');
+                setCustomExType('Barbell');
+                setShowCustomExModal(true);
+              }}
+            />
+          </View>
+
+          <View style={{ paddingVertical: t.spacing.md }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: t.spacing.lg, gap: t.spacing.sm }}
+            >
+              {categories.map((cat) => (
+                <Chip
+                  key={cat}
+                  label={cat}
+                  selected={selectedCategory === cat}
+                  onPress={() => setSelectedCategory(cat)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{
+              paddingHorizontal: t.spacing.lg,
+              paddingBottom: t.spacing.xxl,
+            }}
+            keyboardShouldPersistTaps="handled"
+          >
+            {filteredExercises.length === 0 ? (
+              <View style={{ paddingVertical: t.spacing.xxxl, alignItems: 'center' }}>
+                <Text variant="body" color="textTertiary">
+                  No matching exercises
+                </Text>
+              </View>
+            ) : (
+              filteredExercises.map((ex) => (
+                <TouchableOpacity
+                  key={ex.id}
+                  onPress={() => {
+                    addExerciseToWorkout(ex);
+                    setShowExerciseModal(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Card
+                    style={{
+                      marginBottom: t.spacing.md,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <View style={{ flex: 1, paddingRight: t.spacing.sm }}>
+                      <Text variant="bodyStrong" numberOfLines={1}>
+                        {ex.name}
+                      </Text>
+                      <Text variant="caption" color="accent" style={{ marginTop: 2 }}>
+                        {ex.category}
+                        {getExerciseTypeLabel(ex) ? ` · ${getExerciseTypeLabel(ex)}` : ''}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: t.radius.pill,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: t.color.accentSoft,
+                      }}
+                    >
+                      <Plus color={t.color.accent} size={16} />
+                    </View>
+                  </Card>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+
+          {/* CREATE CUSTOM EXERCISE — centered dialog over the selector. */}
+          {showCustomExModal && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 60,
+                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                paddingHorizontal: t.spacing.xl,
+              }}
+            >
+              <Card elevation="raised" radius="xxl" padding="xl" style={{ width: '100%' }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: t.spacing.lg,
+                  }}
+                >
+                  <Text variant="heading">New custom exercise</Text>
+                  <TouchableOpacity
+                    onPress={() => setShowCustomExModal(false)}
+                    hitSlop={8}
+                    style={{
+                      padding: 6,
+                      borderRadius: t.radius.pill,
+                      borderWidth: 1,
+                      borderColor: t.color.border,
+                      backgroundColor: t.color.surfaceRaised,
+                    }}
+                  >
+                    <X size={14} color={t.color.textSecondary} strokeWidth={2} />
+                  </TouchableOpacity>
+                </View>
+
+                <Input
+                  label="Exercise name"
+                  placeholder="e.g. Kettlebell Swing"
+                  value={customExName}
+                  onChangeText={setCustomExName}
+                  autoCapitalize="words"
+                  containerStyle={{ marginBottom: t.spacing.lg }}
+                />
+
+                <Text variant="label" color="textSecondary" style={{ marginBottom: t.spacing.sm }}>
+                  Target muscle group
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: t.spacing.sm }}
+                  style={{ marginBottom: t.spacing.lg }}
+                >
+                  {categories
+                    .filter((c) => c !== 'All')
+                    .map((cat) => (
+                      <Chip
+                        key={cat}
+                        label={cat}
+                        selected={customExMuscle === cat}
+                        onPress={() => setCustomExMuscle(cat)}
+                      />
+                    ))}
+                </ScrollView>
+
+                <Text variant="label" color="textSecondary" style={{ marginBottom: t.spacing.sm }}>
+                  Exercise type
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: t.spacing.sm }}
+                  style={{ marginBottom: t.spacing.xl }}
+                >
+                  {customExerciseTypes.map((type) => (
+                    <Chip
+                      key={type}
+                      label={type}
+                      selected={customExType === type}
+                      onPress={() => setCustomExType(type)}
+                    />
+                  ))}
+                </ScrollView>
+
+                <Button
+                  label="Create & add exercise"
+                  fullWidth
+                  loading={creatingCustomEx}
+                  onPress={handleCreateCustomExercise}
+                />
+              </Card>
+            </View>
           )}
-        </SafeAreaView>
-        )}
-      </Modal>
+        </Sheet>
+      </Sheet>
     </>
   );
 }
